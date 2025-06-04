@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 public class FieldMetadata
 {
     public string EntityName { get; set; }
@@ -6,4 +8,5 @@ public class FieldMetadata
     public string Type { get; set; }
     public string RequiredLevel { get; set; }
     public string Description { get; set; }
+    public List<string> Forms { get; set; } // <-- Add this line
 }

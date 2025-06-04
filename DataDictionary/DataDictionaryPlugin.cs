@@ -57,6 +57,22 @@ namespace DataDictionary
                 var webResources = GetWebResourcesInSolution(service, solutionId, tracingService);
                 tracingService.Trace($"Web resources found: {webResources.Count}");
 
+                // Annotate fields with the forms they appear on
+                foreach (var entity in entityMetadatas)
+                {
+                    // Get all forms and their fields for this entity
+                    var formFieldsMap = FormFieldInspector.GetFieldsOnForms(service, entity.LogicalName);
+
+                    // Annotate each field with the forms it appears on
+                    foreach (var field in fieldMetadatas.Where(f => f.EntityName == entity.LogicalName))
+                    {
+                        field.Forms = formFieldsMap
+                            .Where(kvp => kvp.Value.Contains(field.SchemaName))
+                            .Select(kvp => kvp.Key)
+                            .ToList();
+                    }
+                }
+
                 // 3. Analyze scripts for field references
                 var scriptReferences = AnalyzeScripts(fieldMetadatas, webResources, tracingService);
 
@@ -343,6 +359,7 @@ namespace DataDictionary
                 Type = f.Type,
                 RequiredLevel = f.RequiredLevel,
                 Description = f.Description,
+                Forms = f.Forms,
                 ScriptReferences = scriptReferences.ContainsKey(f.SchemaName) ? scriptReferences[f.SchemaName] : new List<string>()
             }).ToList();
 
@@ -394,6 +411,7 @@ namespace DataDictionary
             [DataMember] public string Type { get; set; }
             [DataMember] public string RequiredLevel { get; set; }
             [DataMember] public string Description { get; set; }
+            [DataMember] public List<string> Forms { get; set; }
             [DataMember] public List<string> ScriptReferences { get; set; }
         }
 
@@ -408,6 +426,7 @@ namespace DataDictionary
             public string Type { get; set; }
             public string RequiredLevel { get; set; }
             public string Description { get; set; }
+            public List<string> Forms { get; set; }
         }
 
         /// <summary>
