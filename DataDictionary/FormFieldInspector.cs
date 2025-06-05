@@ -5,22 +5,52 @@ using System.Xml;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 
+/// <summary>
+/// Provides methods to inspect forms and extract field, tab, and section visibility information for Dataverse entities.
+/// </summary>
 public class FormFieldInspector
 {
+    /// <summary>
+    /// Represents a field's location and visibility on a form, including tab and section context.
+    /// </summary>
     public class FieldOnFormSection
     {
+        /// <summary>
+        /// The name of the form where the field appears.
+        /// </summary>
         public string FormName { get; set; }
+        /// <summary>
+        /// The name of the tab where the field appears.
+        /// </summary>
         public string TabName { get; set; }
+        /// <summary>
+        /// Indicates whether the tab is visible by default.
+        /// </summary>
         public bool TabVisible { get; set; }
+        /// <summary>
+        /// The name of the section where the field appears.
+        /// </summary>
         public string SectionName { get; set; }
+        /// <summary>
+        /// Indicates whether the section is visible by default.
+        /// </summary>
         public bool SectionVisible { get; set; }
+        /// <summary>
+        /// The schema name of the field.
+        /// </summary>
         public string FieldName { get; set; }
+        /// <summary>
+        /// Indicates whether the field is visible by default.
+        /// </summary>
         public bool FieldVisible { get; set; }
     }
 
     /// <summary>
     /// Returns a mapping of form name to list of field schema names present on the form for a given entity.
     /// </summary>
+    /// <param name="service">Organization service.</param>
+    /// <param name="entityLogicalName">Logical name of the entity.</param>
+    /// <returns>Dictionary mapping form names to lists of field schema names.</returns>
     public static Dictionary<string, List<string>> GetFieldsOnForms(IOrganizationService service, string entityLogicalName)
     {
         var result = new Dictionary<string, List<string>>();
@@ -71,6 +101,9 @@ public class FormFieldInspector
     /// <summary>
     /// Returns a mapping of field schema name to a list of its appearances on forms/sections with visibility info.
     /// </summary>
+    /// <param name="service">Organization service.</param>
+    /// <param name="entityLogicalName">Logical name of the entity.</param>
+    /// <returns>Dictionary mapping field schema names to lists of FieldOnFormSection objects.</returns>
     public static Dictionary<string, List<FieldOnFormSection>> GetFieldVisibilityOnForms(IOrganizationService service, string entityLogicalName)
     {
         var result = new Dictionary<string, List<FieldOnFormSection>>(StringComparer.OrdinalIgnoreCase);
@@ -143,6 +176,9 @@ public class FormFieldInspector
     /// <summary>
     /// Returns a list of all fields on all forms for an entity, including their tab/section and visibility.
     /// </summary>
+    /// <param name="service">Organization service.</param>
+    /// <param name="entityLogicalName">Logical name of the entity.</param>
+    /// <returns>List of FieldOnFormSection objects with form, tab, section, and visibility info.</returns>
     public static List<FieldOnFormSection> GetAllFieldsWithVisibility(IOrganizationService service, string entityLogicalName)
     {
         var result = new List<FieldOnFormSection>();

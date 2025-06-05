@@ -15,8 +15,17 @@ using Microsoft.Xrm.Sdk.Messages;
 
 namespace DataDictionary
 {
+    /// <summary>
+    /// Plug-in to generate a data dictionary for a specified Dataverse solution.
+    /// Retrieves entities, fields, and JavaScript web resources, analyzes script references,
+    /// and outputs the result as a JSON or CSV file attached to a Note.
+    /// </summary>
     public class DataDictionaryPlugin : IPlugin
     {
+        /// <summary>
+        /// Main entry point for the plug-in.
+        /// </summary>
+        /// <param name="serviceProvider">Service provider from the Dataverse runtime.</param>
         public void Execute(IServiceProvider serviceProvider)
         {
             ITracingService tracingService = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
@@ -85,6 +94,12 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Generates a CSV document containing the data dictionary entries.
+        /// </summary>
+        /// <param name="fields">List of field metadata.</param>
+        /// <param name="scriptReferences">Dictionary of script references per field.</param>
+        /// <returns>Byte array of the CSV document.</returns>
         private byte[] GenerateCsvDocument(List<FieldMetadata> fields, Dictionary<string, List<string>> scriptReferences)
         {
             var sb = new StringBuilder();
@@ -108,6 +123,13 @@ namespace DataDictionary
             return Encoding.UTF8.GetBytes(sb.ToString());
         }
 
+        /// <summary>
+        /// Retrieves the solution ID for a given solution unique name.
+        /// </summary>
+        /// <param name="service">Organization service.</param>
+        /// <param name="solutionName">Unique name of the solution.</param>
+        /// <param name="tracingService">Tracing service for logging.</param>
+        /// <returns>Solution ID as a Guid.</returns>
         private Guid GetSolutionId(IOrganizationService service, string solutionName, ITracingService tracingService)
         {
             try
@@ -129,6 +151,13 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Retrieves all entity metadata for entities included in the specified solution.
+        /// </summary>
+        /// <param name="service">Organization service.</param>
+        /// <param name="solutionId">Solution ID.</param>
+        /// <param name="tracingService">Tracing service for logging.</param>
+        /// <returns>List of EntityMetadata objects.</returns>
         private List<EntityMetadata> GetEntitiesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
         {
             var entities = new List<EntityMetadata>();
@@ -175,6 +204,14 @@ namespace DataDictionary
             return entities;
         }
 
+        /// <summary>
+        /// Retrieves all field metadata for fields included in the specified solution and entities.
+        /// </summary>
+        /// <param name="service">Organization service.</param>
+        /// <param name="solutionId">Solution ID.</param>
+        /// <param name="entityMetadatas">List of entity metadata.</param>
+        /// <param name="tracingService">Tracing service for logging.</param>
+        /// <returns>List of FieldMetadata objects.</returns>
         private List<FieldMetadata> GetFieldsInSolution(IOrganizationService service, Guid solutionId, List<EntityMetadata> entityMetadatas, ITracingService tracingService)
         {
             var fields = new List<FieldMetadata>();
@@ -267,6 +304,13 @@ namespace DataDictionary
             return fields;
         }
 
+        /// <summary>
+        /// Retrieves all JavaScript web resources included in the specified solution.
+        /// </summary>
+        /// <param name="service">Organization service.</param>
+        /// <param name="solutionId">Solution ID.</param>
+        /// <param name="tracingService">Tracing service for logging.</param>
+        /// <returns>List of WebResourceInfo objects.</returns>
         private List<WebResourceInfo> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
         {
             var webResources = new List<WebResourceInfo>();
@@ -318,6 +362,13 @@ namespace DataDictionary
             return webResources;
         }
 
+        /// <summary>
+        /// Analyzes JavaScript web resources to find references to fields.
+        /// </summary>
+        /// <param name="fields">List of field metadata.</param>
+        /// <param name="webResources">List of web resources.</param>
+        /// <param name="tracingService">Tracing service for logging.</param>
+        /// <returns>Dictionary mapping field schema names to lists of web resource names referencing them.</returns>
         private Dictionary<string, List<string>> AnalyzeScripts(List<FieldMetadata> fields, List<WebResourceInfo> webResources, ITracingService tracingService)
         {
             var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -347,6 +398,12 @@ namespace DataDictionary
             return result;
         }
 
+        /// <summary>
+        /// Generates a JSON document containing the data dictionary entries.
+        /// </summary>
+        /// <param name="fields">List of field metadata.</param>
+        /// <param name="scriptReferences">Dictionary of script references per field.</param>
+        /// <returns>Byte array of the JSON document.</returns>
         private byte[] GenerateJsonDocument(List<FieldMetadata> fields, Dictionary<string, List<string>> scriptReferences)
         {
             var entries = fields.Select(f => new DataDictionaryEntry
@@ -373,6 +430,15 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Stores the generated document as a Note (annotation) in Dataverse.
+        /// </summary>
+        /// <param name="service">Organization service.</param>
+        /// <param name="docBytes">Document content as byte array.</param>
+        /// <param name="fileName">File name for the note attachment.</param>
+        /// <param name="noteText">Note text/description.</param>
+        /// <param name="tracingService">Tracing service for logging.</param>
+        /// <returns>GUID of the created annotation record.</returns>
         private Guid StoreDocumentAsNote(IOrganizationService service, byte[] docBytes, string fileName, string noteText, ITracingService tracingService)
         {
             try
@@ -392,6 +458,9 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Serializable data structure for a data dictionary entry.
+        /// </summary>
         [DataContract]
         private class DataDictionaryEntry
         {
@@ -409,6 +478,9 @@ namespace DataDictionary
             [DataMember] public List<string> ScriptReferences { get; set; }
         }
 
+        /// <summary>
+        /// Serializable data structure for a field's location on a form, including visibility.
+        /// </summary>
         [DataContract]
         public class FieldFormLocation
         {
@@ -421,6 +493,9 @@ namespace DataDictionary
             [DataMember] public string FieldName { get; set; }
         }
 
+        /// <summary>
+        /// Internal class for field metadata.
+        /// </summary>
         private class FieldMetadata
         {
             public string EntityName { get; set; }
@@ -437,6 +512,9 @@ namespace DataDictionary
             public List<string> ScriptReferences { get; set; } = new List<string>();
         }
 
+        /// <summary>
+        /// Internal class for web resource information.
+        /// </summary>
         private class WebResourceInfo
         {
             public Guid Id { get; set; }
@@ -447,9 +525,14 @@ namespace DataDictionary
         }
     }
 
-    // Helper for form/field/section/tab visibility
+    /// <summary>
+    /// Helper class for extracting field, tab, and section visibility from form XML.
+    /// </summary>
     public static class FormFieldInspector
     {
+        /// <summary>
+        /// Data structure representing a field's location and visibility on a form.
+        /// </summary>
         public class FieldOnFormSection
         {
             public string FormName { get; set; }
@@ -461,6 +544,12 @@ namespace DataDictionary
             public bool FieldVisible { get; set; }
         }
 
+        /// <summary>
+        /// Returns a list of all fields on all forms for an entity, including their tab/section and visibility.
+        /// </summary>
+        /// <param name="service">Organization service.</param>
+        /// <param name="entityLogicalName">Logical name of the entity.</param>
+        /// <returns>List of FieldOnFormSection objects with visibility info.</returns>
         public static List<FieldOnFormSection> GetAllFieldsWithVisibility(IOrganizationService service, string entityLogicalName)
         {
             var result = new List<FieldOnFormSection>();
