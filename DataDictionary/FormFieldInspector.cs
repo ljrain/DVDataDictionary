@@ -5,9 +5,9 @@ using System.Xml;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 
-/// <summary>
-/// Provides methods to inspect forms and extract field, tab, and section visibility information for Dataverse entities.
-/// </summary>
+/// <summary>  
+/// Helper class for extracting field, tab, and section visibility from form XML.  
+/// </summary>  
 public static class FormFieldInspector
 {
     /// <summary>  
@@ -15,10 +15,11 @@ public static class FormFieldInspector
     /// </summary>  
     /// <param name="service">The organization service.</param>  
     /// <param name="entityLogicalName">The logical name of the entity.</param>  
-    /// <returns>A list of field form locations with visibility information.</returns>  
-    public static List<FieldFormLocation> GetAllFieldsWithVisibility(IOrganizationService service, string entityLogicalName)
+    /// <returns>A list of field form locations.</returns>  
+    public static IEnumerable<FieldFormLocation> GetAllFieldsWithVisibility(IOrganizationService service, string entityLogicalName)
     {
-        // Placeholder implementation. Replace with actual logic to retrieve form visibility details.  
+        // Placeholder implementation for retrieving field visibility information.  
+        // Replace this with actual logic to parse form XML and extract field visibility details.  
         return new List<FieldFormLocation>();
     }
 

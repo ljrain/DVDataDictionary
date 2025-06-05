@@ -34,6 +34,10 @@ public class FieldFormLocation
     /// Indicates whether the field is visible by default.
     /// </summary>
     public bool FieldVisible { get; set; }
+
+    public string FieldName { get; set; }
+
+    public string FieldDescription { get; set; }
 }
 
 /// <summary>

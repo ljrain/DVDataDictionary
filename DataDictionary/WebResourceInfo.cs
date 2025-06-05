@@ -1,33 +1,28 @@
 namespace DataDictionary
 {
-    /// <summary>  
-    /// Represents metadata information about a web resource in Dataverse.  
-    /// </summary>  
+    /// <summary>
+    /// Represents a web resource in Dataverse, such as a JavaScript file.
+    /// </summary>
     public class WebResourceInfo
     {
-        /// <summary>  
-        /// Gets or sets the name of the web resource.  
-        /// </summary>  
+        /// <summary>
+        /// The unique identifier of the web resource.
+        /// </summary>
+        public System.Guid Id { get; set; }
+
+        /// <summary>
+        /// The name (logical name) of the web resource.
+        /// </summary>
         public string Name { get; set; }
 
-        /// <summary>  
-        /// Gets or sets the display name of the web resource.  
-        /// </summary>  
+        /// <summary>
+        /// The display name of the web resource.
+        /// </summary>
         public string DisplayName { get; set; }
 
-        /// <summary>  
-        /// Gets or sets the type of the web resource (e.g., JavaScript, HTML, etc.).  
-        /// </summary>  
-        public string Type { get; set; }
-
-        /// <summary>  
-        /// Gets or sets the content of the web resource.  
-        /// </summary>  
-        public string Content { get; set; }
-
-        /// <summary>  
-        /// Gets or sets the solution name associated with the web resource.  
-        /// </summary>  
-        public string SolutionName { get; set; }
+        /// <summary>
+        /// The description of the web resource.
+        /// </summary>
+        public string Description { get; set; }
     }
 }
