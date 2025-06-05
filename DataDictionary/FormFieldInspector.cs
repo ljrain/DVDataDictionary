@@ -5,10 +5,12 @@ using System.Xml;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 
-/// <summary>
-/// Provides methods to inspect forms and extract field, tab, and section visibility information for Dataverse entities.
-/// </summary>
-public class FormFieldInspector
+namespace DataDictionary
+{
+    /// <summary>
+    /// Provides methods to inspect forms and extract field, tab, and section visibility information for Dataverse entities.
+    /// </summary>
+    public class FormFieldInspector
 {
     /// <summary>
     /// Represents a field's location and visibility on a form, including tab and section context.
@@ -243,4 +245,5 @@ public class FormFieldInspector
         }
         return result;
     }
+}
 }

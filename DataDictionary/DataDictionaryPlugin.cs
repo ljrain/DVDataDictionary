@@ -479,40 +479,6 @@ namespace DataDictionary
         }
 
         /// <summary>
-        /// Serializable data structure for a field's location on a form, including visibility.
-        /// </summary>
-        [DataContract]
-        public class FieldFormLocation
-        {
-            [DataMember] public string FormName { get; set; }
-            [DataMember] public string TabName { get; set; }
-            [DataMember] public bool TabVisible { get; set; }
-            [DataMember] public string SectionName { get; set; }
-            [DataMember] public bool SectionVisible { get; set; }
-            [DataMember] public bool FieldVisible { get; set; }
-            [DataMember] public string FieldName { get; set; }
-        }
-
-        /// <summary>
-        /// Internal class for field metadata.
-        /// </summary>
-        private class FieldMetadata
-        {
-            public string EntityName { get; set; }
-            public string SchemaName { get; set; }
-            public string DisplayName { get; set; }
-            public string Type { get; set; }
-            public string RequiredLevel { get; set; }
-            public string Description { get; set; }
-            public int? MaxLength { get; set; }
-            public int? Precision { get; set; }
-            public int? MinValue { get; set; }
-            public int? MaxValue { get; set; }
-            public List<FieldFormLocation> FormLocations { get; set; } = new List<FieldFormLocation>();
-            public List<string> ScriptReferences { get; set; } = new List<string>();
-        }
-
-        /// <summary>
         /// Internal class for web resource information.
         /// </summary>
         private class WebResourceInfo
@@ -522,97 +488,6 @@ namespace DataDictionary
             public string DisplayName { get; set; }
             public string Description { get; set; }
             public string Content { get; set; }
-        }
-    }
-
-    /// <summary>
-    /// Helper class for extracting field, tab, and section visibility from form XML.
-    /// </summary>
-    public static class FormFieldInspector
-    {
-        /// <summary>
-        /// Data structure representing a field's location and visibility on a form.
-        /// </summary>
-        public class FieldOnFormSection
-        {
-            public string FormName { get; set; }
-            public string TabName { get; set; }
-            public bool TabVisible { get; set; }
-            public string SectionName { get; set; }
-            public bool SectionVisible { get; set; }
-            public string FieldName { get; set; }
-            public bool FieldVisible { get; set; }
-        }
-
-        /// <summary>
-        /// Returns a list of all fields on all forms for an entity, including their tab/section and visibility.
-        /// </summary>
-        /// <param name="service">Organization service.</param>
-        /// <param name="entityLogicalName">Logical name of the entity.</param>
-        /// <returns>List of FieldOnFormSection objects with visibility info.</returns>
-        public static List<FieldOnFormSection> GetAllFieldsWithVisibility(IOrganizationService service, string entityLogicalName)
-        {
-            var result = new List<FieldOnFormSection>();
-
-            var query = new QueryExpression("systemform")
-            {
-                ColumnSet = new ColumnSet("name", "formxml"),
-                Criteria =
-                {
-                    Conditions =
-                    {
-                        new ConditionExpression("objecttypecode", ConditionOperator.Equal, entityLogicalName),
-                        new ConditionExpression("type", ConditionOperator.Equal, 2) // Main form
-                    }
-                }
-            };
-
-            var forms = service.RetrieveMultiple(query).Entities;
-
-            foreach (var form in forms)
-            {
-                var formName = form.GetAttributeValue<string>("name");
-                var formXml = form.GetAttributeValue<string>("formxml");
-                if (string.IsNullOrEmpty(formXml)) continue;
-
-                var xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(formXml);
-
-                var tabNodes = xmlDoc.SelectNodes("//tab");
-                foreach (XmlNode tabNode in tabNodes)
-                {
-                    var tabName = tabNode.Attributes["name"]?.Value ?? "";
-                    var tabVisible = tabNode.Attributes["visible"] == null || tabNode.Attributes["visible"].Value != "false";
-
-                    var sectionNodes = tabNode.SelectNodes(".//section");
-                    foreach (XmlNode sectionNode in sectionNodes)
-                    {
-                        var sectionName = sectionNode.Attributes["name"]?.Value ?? "";
-                        var sectionVisible = sectionNode.Attributes["visible"] == null || sectionNode.Attributes["visible"].Value != "false";
-
-                        var controlNodes = sectionNode.SelectNodes(".//control[@datafieldname]");
-                        foreach (XmlNode controlNode in controlNodes)
-                        {
-                            var fieldName = controlNode.Attributes["datafieldname"]?.Value;
-                            if (string.IsNullOrEmpty(fieldName)) continue;
-
-                            var fieldVisible = controlNode.Attributes["visible"] == null || controlNode.Attributes["visible"].Value != "false";
-
-                            result.Add(new FieldOnFormSection
-                            {
-                                FormName = formName,
-                                TabName = tabName,
-                                TabVisible = tabVisible,
-                                SectionName = sectionName,
-                                SectionVisible = sectionVisible,
-                                FieldName = fieldName,
-                                FieldVisible = fieldVisible
-                            });
-                        }
-                    }
-                }
-            }
-            return result;
         }
     }
 }
