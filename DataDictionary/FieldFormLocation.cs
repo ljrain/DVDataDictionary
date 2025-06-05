@@ -1,11 +1,16 @@
-// Ensure the class definition is unique within the namespace by renaming or removing duplicates.  
-// Based on the provided context, it seems there is a duplicate definition of the `FieldMetadata` class.  
-// To resolve the issue, you can either rename one of the classes or remove the duplicate definition.  
-
-// Option 1: Rename the duplicate class (if both are needed).  
 using System.Collections.Generic;
 
-public class FieldMetadataV2
+public class FieldFormLocation
+{
+    public string FormName { get; set; }
+    public string TabName { get; set; }
+    public bool TabVisible { get; set; }
+    public string SectionName { get; set; }
+    public bool SectionVisible { get; set; }
+    public bool FieldVisible { get; set; }
+}
+
+public class FieldMetadata
 {
     public string EntityName { get; set; }
     public string SchemaName { get; set; }
@@ -20,6 +25,3 @@ public class FieldMetadataV2
     public List<FieldFormLocation> FormLocations { get; set; }
     public List<string> ScriptReferences { get; set; }
 }
-
-// Option 2: Remove the duplicate definition (if only one is needed).  
-// If the duplicate definition is unnecessary, delete the redundant class entirely.
