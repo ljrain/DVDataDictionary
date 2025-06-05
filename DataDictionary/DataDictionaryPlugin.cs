@@ -25,38 +25,46 @@ namespace DataDictionary
             ITracingService tracingService = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
             try
             {
+                tracingService.Trace("DataDictionaryPlugin: Entered Execute method.");
+
                 var context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
+                tracingService.Trace("DataDictionaryPlugin: Retrieved IPluginExecutionContext.");
+
                 var serviceFactory = (IOrganizationServiceFactory)serviceProvider.GetService(typeof(IOrganizationServiceFactory));
+                tracingService.Trace("DataDictionaryPlugin: Retrieved IOrganizationServiceFactory.");
+
                 var service = serviceFactory.CreateOrganizationService(context.UserId);
+                tracingService.Trace($"DataDictionaryPlugin: Created OrganizationService for UserId: {context.UserId}.");
 
-                tracingService.Trace("Starting DataDictionaryPlugin execution.");
-
-                // Fix for CS0128 and CS0219:
                 string[] solutionNames = null;
                 if (context.InputParameters.Contains("SolutionNames"))
                 {
                     var param = context.InputParameters["SolutionNames"];
+                    tracingService.Trace($"DataDictionaryPlugin: SolutionNames parameter found, type: {param?.GetType().FullName}");
                     if (param is string[])
                     {
                         solutionNames = (string[])param;
                     }
                     else if (param is string)
                     {
-                        // Handle comma-separated string input
                         solutionNames = ((string)param)
                             .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                             .Select(s => s.Trim())
                             .ToArray();
                     }
                 }
+                else
+                {
+                    tracingService.Trace("DataDictionaryPlugin: SolutionNames parameter not found in InputParameters.");
+                }
 
                 if (solutionNames == null || solutionNames.Length == 0)
                 {
-                    tracingService.Trace("No solution names provided. Exiting execution.");
-                    return; // Exit early if no solution names are provided
+                    tracingService.Trace("DataDictionaryPlugin: No solution names provided. Exiting execution.");
+                    return;
                 }
 
-                tracingService.Trace($"SolutionNames: {string.Join(", ", solutionNames)}");
+                tracingService.Trace($"DataDictionaryPlugin: SolutionNames: {string.Join(", ", solutionNames)}");
 
                 var allEntityMetadatas = new List<EntityMetadata>();
                 var allFieldMetadatas = new List<FieldMetadata>();
@@ -64,11 +72,12 @@ namespace DataDictionary
 
                 foreach (var solutionName in solutionNames.Where(n => !string.IsNullOrWhiteSpace(n)))
                 {
+                    tracingService.Trace($"DataDictionaryPlugin: Processing solution '{solutionName}'.");
                     var currentSolutionId = GetSolutionId(service, solutionName, tracingService);
-                    tracingService.Trace($"SolutionId for '{solutionName}': {currentSolutionId}");
+                    tracingService.Trace($"DataDictionaryPlugin: SolutionId for '{solutionName}': {currentSolutionId}");
 
                     var entityMetadatas = GetEntitiesInSolution(service, currentSolutionId, tracingService);
-                    tracingService.Trace($"Entities found in '{solutionName}': {entityMetadatas.Count}");
+                    tracingService.Trace($"DataDictionaryPlugin: Entities found in '{solutionName}': {entityMetadatas.Count}");
 
                     foreach (var entity in entityMetadatas)
                     {
@@ -77,7 +86,7 @@ namespace DataDictionary
                     }
 
                     var fieldMetadatas = GetFieldsInSolution(service, currentSolutionId, entityMetadatas, tracingService);
-                    tracingService.Trace($"Fields found in '{solutionName}': {fieldMetadatas.Count}");
+                    tracingService.Trace($"DataDictionaryPlugin: Fields found in '{solutionName}': {fieldMetadatas.Count}");
 
                     foreach (var field in fieldMetadatas)
                     {
@@ -86,7 +95,7 @@ namespace DataDictionary
                     }
 
                     var webResources = GetWebResourcesInSolution(service, currentSolutionId, tracingService);
-                    tracingService.Trace($"Web resources found in '{solutionName}': {webResources.Count}");
+                    tracingService.Trace($"DataDictionaryPlugin: Web resources found in '{solutionName}': {webResources.Count}");
 
                     foreach (var wr in webResources)
                     {
@@ -95,8 +104,13 @@ namespace DataDictionary
                     }
                 }
 
+                tracingService.Trace($"DataDictionaryPlugin: Total unique entities: {allEntityMetadatas.Count}");
+                tracingService.Trace($"DataDictionaryPlugin: Total unique fields: {allFieldMetadatas.Count}");
+                tracingService.Trace($"DataDictionaryPlugin: Total unique web resources: {allWebResources.Count}");
+
                 foreach (var entity in allEntityMetadatas)
                 {
+                    tracingService.Trace($"DataDictionaryPlugin: Inspecting form fields for entity: {entity.LogicalName}");
                     var allLocations = FormFieldInspector.GetAllFieldsWithVisibility(service, entity.LogicalName)
                         .Cast<FieldFormLocation>();
 
@@ -119,25 +133,38 @@ namespace DataDictionary
                     }
                 }
 
+                tracingService.Trace("DataDictionaryPlugin: Analyzing scripts.");
                 var scriptReferences = AnalyzeScripts(allFieldMetadatas, allWebResources, tracingService);
+                tracingService.Trace($"DataDictionaryPlugin: Script analysis complete. ScriptReferences count: {scriptReferences.Count}");
 
+                tracingService.Trace("DataDictionaryPlugin: Generating JSON document.");
                 var docBytes = GenerateJsonDocument(allFieldMetadatas, scriptReferences);
-                var csvBytes = GenerateCsvDocument(allFieldMetadatas, scriptReferences);
+                tracingService.Trace($"DataDictionaryPlugin: JSON document generated. Size: {docBytes?.Length ?? 0} bytes.");
 
+                tracingService.Trace("DataDictionaryPlugin: Generating CSV document.");
+                var csvBytes = GenerateCsvDocument(allFieldMetadatas, scriptReferences);
+                tracingService.Trace($"DataDictionaryPlugin: CSV document generated. Size: {csvBytes?.Length ?? 0} bytes.");
+
+                tracingService.Trace("DataDictionaryPlugin: Storing JSON document as Note.");
                 var noteId = StoreDocumentAsNote(service, docBytes, "DataDictionary.json", "Data Dictionary generated by plug-in.", tracingService);
+                tracingService.Trace($"DataDictionaryPlugin: JSON NoteId: {noteId}");
+
+                tracingService.Trace("DataDictionaryPlugin: Storing CSV document as Note.");
                 var csvNoteId = StoreDocumentAsNote(service, csvBytes, "DataDictionary.csv", "Data Dictionary CSV generated by plug-in.", tracingService);
+                tracingService.Trace($"DataDictionaryPlugin: CSV NoteId: {csvNoteId}");
 
                 context.OutputParameters["NoteId"] = noteId;
                 context.OutputParameters["CsvNoteId"] = csvNoteId;
 
-                tracingService.Trace("DataDictionaryPlugin execution completed successfully.");
+                tracingService.Trace("DataDictionaryPlugin: Execution completed successfully.");
             }
             catch (Exception ex)
             {
-                tracingService?.Trace($"Exception: {ex}");
+                tracingService?.Trace($"DataDictionaryPlugin: Exception: {ex}");
                 throw new InvalidPluginExecutionException("An error occurred in DataDictionaryPlugin: " + ex.Message, ex);
             }
         }
+
         private Guid GetSolutionId(IOrganizationService service, string solutionName, ITracingService tracingService)
         {
             tracingService.Trace($"Retrieving SolutionId for solution: {solutionName}");
@@ -163,13 +190,14 @@ namespace DataDictionary
 
             return solutions.Entities[0].Id;
         }
+
         private List<EntityMetadata> GetEntitiesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
         {
             tracingService.Trace($"Retrieving entities for solutionId: {solutionId}");
 
             var query = new QueryExpression("solutioncomponent")
             {
-                ColumnSet = new ColumnSet("objectid"), // Fix for CS0117: 'RetrieveEntityRequest' does not contain a definition for 'ColumnSet'
+                ColumnSet = new ColumnSet("objectid"),
                 Criteria = new FilterExpression
                 {
                     Conditions =
@@ -185,11 +213,12 @@ namespace DataDictionary
             var entityMetadatas = new List<EntityMetadata>();
             foreach (var component in solutionComponents.Entities)
             {
-                var entityId = component.GetAttributeValue<Guid>("objectid"); // Fix for SPELL: Spelling error - objectid is not a word
+                var entityId = component.GetAttributeValue<Guid>("objectid");
+                // Use MetadataId instead of LogicalName
                 var retrieveEntityRequest = new RetrieveEntityRequest
                 {
                     EntityFilters = EntityFilters.Attributes,
-                    LogicalName = entityId.ToString()
+                    MetadataId = entityId
                 };
 
                 var retrieveEntityResponse = (RetrieveEntityResponse)service.Execute(retrieveEntityRequest);
@@ -198,6 +227,7 @@ namespace DataDictionary
 
             return entityMetadatas;
         }
+
         private List<FieldMetadata> GetFieldsInSolution(IOrganizationService service, Guid solutionId, List<EntityMetadata> entityMetadatas, ITracingService tracingService)
         {
             tracingService.Trace($"Retrieving fields for solutionId: {solutionId}");
@@ -232,6 +262,7 @@ namespace DataDictionary
 
             return fieldMetadatas;
         }
+
         private List<WebResourceInfo> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
         {
             tracingService.Trace($"Retrieving web resources for solutionId: {solutionId}");
@@ -255,18 +286,26 @@ namespace DataDictionary
             foreach (var component in solutionComponents.Entities)
             {
                 var webResourceId = component.GetAttributeValue<Guid>("objectid");
-                var webResource = service.Retrieve("webresource", webResourceId, new ColumnSet("name", "displayname"));
-
-                webResources.Add(new WebResourceInfo
+                try
                 {
-                    Path = webResourceId.ToString(), // Use Path instead of Id
-                    Name = webResource.GetAttributeValue<string>("name"),
-                    DisplayName = webResource.GetAttributeValue<string>("displayname")
-                });
+                    var webResource = service.Retrieve("webresource", webResourceId, new ColumnSet("name", "displayname"));
+                    webResources.Add(new WebResourceInfo
+                    {
+                        Path = webResourceId.ToString(),
+                        Name = webResource.GetAttributeValue<string>("name"),
+                        DisplayName = webResource.GetAttributeValue<string>("displayname")
+                    });
+                }
+                catch (Exception ex)
+                {
+                    tracingService.Trace($"Web resource with Id {webResourceId} could not be retrieved: {ex.Message}");
+                    // Continue processing other web resources
+                }
             }
 
             return webResources;
         }
+
         private List<string> AnalyzeScripts(List<FieldMetadata> fieldMetadatas, List<WebResourceInfo> webResources, ITracingService tracingService)
         {
             tracingService.Trace("Analyzing scripts for field metadata and web resources.");
@@ -284,25 +323,11 @@ namespace DataDictionary
                 {
                     if (webResource.Name.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Simulate script analysis logic
-                        // Fix for CS1501: No overload for method 'Contains' takes 2 arguments
-                        // The issue is that the `Contains` method does not support a `StringComparison` parameter.
-                        // Replace the `Contains` method with `IndexOf` and check if the result is greater than or equal to 0.
-
                         if (field.SchemaName != null && webResource.Name.IndexOf(field.SchemaName, StringComparison.OrdinalIgnoreCase) >= 0)
-                            // Fix for CS1501: Replace the incorrect usage of 'Contains' with 'IndexOf' for case-insensitive comparison.
-                            // Replace the problematic line with the following code block:
-                            // Replace the problematic line with the following code block:
-                            if (field.SchemaName != null && webResource.Name.IndexOf(field.SchemaName, StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                field.ScriptReferences.Add(webResource.Name);
-                                scriptReferences.Add(webResource.Name);
-                            }
-                        // Replace this line:
-                        // if (field.SchemaName != null && webResource.Name.Contains(field.SchemaName, StringComparison.OrdinalIgnoreCase))
-
-                        // With this line:
-                        if (field.SchemaName != null && webResource.Name.IndexOf(field.SchemaName, StringComparison.OrdinalIgnoreCase) >= 0);
+                        {
+                            field.ScriptReferences.Add(webResource.Name);
+                            scriptReferences.Add(webResource.Name);
+                        }
                     }
                 }
 
@@ -312,6 +337,7 @@ namespace DataDictionary
             tracingService.Trace($"Script analysis completed. Total script references found: {scriptReferences.Count}");
             return scriptReferences;
         }
+
         private byte[] GenerateJsonDocument(List<FieldMetadata> fieldMetadatas, List<string> scriptReferences)
         {
             using (var memoryStream = new MemoryStream())
@@ -326,6 +352,7 @@ namespace DataDictionary
                 return memoryStream.ToArray();
             }
         }
+
         private byte[] GenerateCsvDocument(List<FieldMetadata> fieldMetadatas, List<string> scriptReferences)
         {
             using (var memoryStream = new MemoryStream())
@@ -345,6 +372,7 @@ namespace DataDictionary
                 return memoryStream.ToArray();
             }
         }
+
         private Guid StoreDocumentAsNote(IOrganizationService service, byte[] documentBytes, string fileName, string description, ITracingService tracingService)
         {
             tracingService.Trace($"Storing document as Note. FileName: {fileName}, Description: {description}");
