@@ -110,12 +110,16 @@ namespace DataDictionary
 
                 foreach (var entity in allEntityMetadatas)
                 {
-                    tracingService.Trace($"DataDictionaryPlugin: Inspecting form fields for entity: {entity.LogicalName}");
+                    tracingService.Trace($"DataDictionaryPlugin: Inspecting forms for entity: {entity.LogicalName}");
+
+                    // Get all form field locations for this entity
                     var allLocations = FormFieldInspector.GetAllFieldsWithVisibility(service, entity.LogicalName)
-                        .Cast<FieldFormLocation>();
+                        .Cast<FieldFormLocation>()
+                        .ToList();
 
                     foreach (var field in allFieldMetadatas.Where(f => f.EntityName == entity.LogicalName))
                     {
+                        // Find all locations for this field on all forms
                         field.FormLocations = allLocations
                             .Where(loc => loc.FieldName == field.SchemaName)
                             .Select(loc => new FieldFormLocation
@@ -127,9 +131,16 @@ namespace DataDictionary
                                 SectionVisible = loc.SectionVisible,
                                 FieldVisible = loc.FieldVisible,
                                 FieldName = loc.FieldName,
-                                FieldDescription = loc.FieldDescription
+                                FieldDescription = loc.FieldDescription,
+
+                                RequiredLevel = field.RequiredLevel,
+                                Permissions = field.Permissions
                             })
                             .ToList();
+
+                        // Set required level and permissions if available
+                        // (Assumes FieldMetadata.Type and RequiredLevel are already set from metadata)
+                        // You can extend FieldFormLocation and FieldMetadata to include permissions if needed
                     }
                 }
 
@@ -138,7 +149,7 @@ namespace DataDictionary
                 tracingService.Trace($"DataDictionaryPlugin: Script analysis complete. ScriptReferences count: {scriptReferences.Count}");
 
                 tracingService.Trace("DataDictionaryPlugin: Generating JSON document.");
-                var docBytes = GenerateJsonDocument(allFieldMetadatas, scriptReferences);
+                var docBytes = GenerateJsonDocument(allFieldMetadatas, scriptReferences, solutionNames.ToList());
                 tracingService.Trace($"DataDictionaryPlugin: JSON document generated. Size: {docBytes?.Length ?? 0} bytes.");
 
                 tracingService.Trace("DataDictionaryPlugin: Generating CSV document.");
@@ -338,7 +349,7 @@ namespace DataDictionary
             return scriptReferences;
         }
 
-        private byte[] GenerateJsonDocument(List<FieldMetadata> fieldMetadatas, List<string> scriptReferences)
+        private byte[] GenerateJsonDocument(List<FieldMetadata> fieldMetadatas, List<string> scriptReferences, List<string> solutionNames)
         {
             using (var memoryStream = new MemoryStream())
             {
@@ -346,7 +357,8 @@ namespace DataDictionary
                 var document = new DataDictionaryDocument
                 {
                     Fields = fieldMetadatas,
-                    ScriptReferences = scriptReferences
+                    ScriptReferences = scriptReferences,
+                    SolutionNames = solutionNames // Set the property
                 };
                 serializer.WriteObject(memoryStream, document);
                 return memoryStream.ToArray();
@@ -398,5 +410,48 @@ namespace DataDictionary
         public List<FieldMetadata> Fields { get; set; }
         public List<string> ScriptReferences { get; set; }
         public string AdditionalProperty { get; set; }
+        public List<string> SolutionNames { get; set; } // Add this property
+    }
+    // Fix for CS0117: Add the 'Permissions' property to the 'FieldFormLocation' class definition.
+    public class FieldFormLocation
+    {
+        public string FormName { get; set; }
+        public string TabName { get; set; }
+        public bool TabVisible { get; set; }
+        public string SectionName { get; set; }
+        public bool SectionVisible { get; set; }
+        public bool FieldVisible { get; set; }
+        public string FieldName { get; set; }
+        public string FieldDescription { get; set; }
+        public bool CanRead { get; set; }
+        public bool CanWrite { get; set; }
+        public bool CanCreate { get; set; }
+        public string RequiredLevel { get; set; }
+
+        // Add Permissions property to resolve CS0117
+        public string Permissions { get; set; }
+    }
+    // Fix for CS1061: Add the 'Permissions' property to the 'FieldMetadata' class definition.
+    public class FieldMetadata
+    {
+        public string EntityName { get; set; }
+        public string SchemaName { get; set; }
+        public string DisplayName { get; set; }
+        public string Description { get; set; }
+        public string Type { get; set; }
+        public string RequiredLevel { get; set; }
+        public int? MaxLength { get; set; }
+        public int? Precision { get; set; }
+        public int? MinValue { get; set; }
+        public int? MaxValue { get; set; }
+        public List<FieldFormLocation> FormLocations { get; set; }
+        public List<string> ScriptReferences { get; set; }
+        public bool HiddenByScript { get; set; }
+        public bool CanRead { get; set; }
+        public bool CanWrite { get; set; }
+        public bool CanCreate { get; set; }
+
+        // Add Permissions property to resolve CS1061
+        public string Permissions { get; set; }
     }
 }
