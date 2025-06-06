@@ -88,10 +88,27 @@ namespace DataDictionary
                     var fieldMetadatas = GetFieldsInSolution(service, currentSolutionId, entityMetadatas, tracingService);
                     tracingService.Trace($"DataDictionaryPlugin: Fields found in '{solutionName}': {fieldMetadatas.Count}");
 
+                    // After collecting fieldMetadatas in each solution, add the solution name to each field:
                     foreach (var field in fieldMetadatas)
                     {
-                        if (!allFieldMetadatas.Any(f => f.EntityName == field.EntityName && f.SchemaName == field.SchemaName))
+                        if (field.SolutionNames == null)
+                            field.SolutionNames = new List<string>();
+                        if (!field.SolutionNames.Contains(solutionName))
+                            field.SolutionNames.Add(solutionName);
+
+                        // Merge with allFieldMetadatas if already present
+                        var existing = allFieldMetadatas
+                            .FirstOrDefault(f => f.EntityName == field.EntityName && f.SchemaName == field.SchemaName);
+                        if (existing != null)
+                        {
+                            foreach (var sol in field.SolutionNames)
+                                if (!existing.SolutionNames.Contains(sol))
+                                    existing.SolutionNames.Add(sol);
+                        }
+                        else
+                        {
                             allFieldMetadatas.Add(field);
+                        }
                     }
 
                     var webResources = GetWebResourcesInSolution(service, currentSolutionId, tracingService);
@@ -264,7 +281,8 @@ namespace DataDictionary
                         EntityName = entityMetadata.LogicalName,
                         SchemaName = attribute.SchemaName,
                         DisplayName = attribute.DisplayName?.UserLocalizedLabel?.Label,
-                        Description = attribute.Description?.UserLocalizedLabel?.Label
+                        Description = attribute.Description?.UserLocalizedLabel?.Label,
+                        Type = attribute.AttributeTypeName?.Value // <-- Add this line
                     };
 
                     fieldMetadatas.Add(fieldMetadata);
@@ -453,5 +471,8 @@ namespace DataDictionary
 
         // Add Permissions property to resolve CS1061
         public string Permissions { get; set; }
+
+        // Add SolutionNames property to FieldMetadata
+        public List<string> SolutionNames { get; set; }
     }
 }
