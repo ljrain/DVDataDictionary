@@ -383,12 +383,15 @@ namespace DataDictionary
         {
             using (var memoryStream = new MemoryStream())
             {
-                var serializer = new DataContractJsonSerializer(typeof(DataDictionaryDocument));
-                var document = new DataDictionaryDocument
+                var serializer = new DataContractJsonSerializer(typeof(DataDictionaryRoot));
+                var document = new DataDictionaryRoot
                 {
-                    Fields = fieldMetadatas,
-                    ScriptReferences = scriptReferences,
-                    SolutionNames = solutionNames // Set the property
+                    DataDictionary = new DataDictionaryDocument
+                    {
+                        Fields = fieldMetadatas,
+                        ScriptReferences = scriptReferences,
+                        SolutionNames = solutionNames
+                    }
                 };
                 serializer.WriteObject(memoryStream, document);
                 return memoryStream.ToArray();
@@ -447,16 +450,22 @@ namespace DataDictionary
                 Formatting = Newtonsoft.Json.Formatting.Indented, // Pretty print
                 ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver() // camelCase
             };
-            return Newtonsoft.Json.JsonConvert.SerializeObject(data, settings);
+            // Wrap the data in the DataDictionary parent
+            var root = new { DataDictionary = data };
+            return Newtonsoft.Json.JsonConvert.SerializeObject(root, settings);
         }
         // Other methods remain unchanged...
+    }
+
+    public class DataDictionaryRoot
+    {
+        public DataDictionaryDocument DataDictionary { get; set; }
     }
 
     public class DataDictionaryDocument
     {
         public List<FieldMetadata> Fields { get; set; }
         public List<string> ScriptReferences { get; set; }
-        public string AdditionalProperty { get; set; } // Uncommenting AdditionalProperty
         public List<string> SolutionNames { get; set; } // Add this property
     }
     // Fix for CS0117: Add the 'Permissions' property to the 'FieldFormLocation' class definition.
