@@ -154,6 +154,7 @@ namespace DataDictionary
 
                                 RequiredLevel = field.RequiredLevel,
                                 Permissions = field.Permissions
+                                
                             })
                             .ToList();
 
