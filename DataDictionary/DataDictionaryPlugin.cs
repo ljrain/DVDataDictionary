@@ -149,32 +149,111 @@ namespace DataDictionary
             {
                 var dataDictionary = new
                 {
-                    Fields = fieldMetadatas.Select(f => new
+                    DVDictionary = new
                     {
-                        f.EntityName,
-                        f.SchemaName,
-                        f.DisplayName,
-                        f.Type,
-                        f.RequiredLevel,
-                        f.Description,
-                        f.MaxLength,
-                        f.Precision,
-                        f.MinValue,
-                        f.MaxValue,
-                        FormLocations = f.FormLocations?.Select(fl => new
+                        Metadata = new
                         {
-                            fl.FormName,
-                            fl.TabName,
-                            fl.TabVisible,
-                            fl.SectionName,
-                            fl.SectionVisible,
-                            fl.FieldVisible,
-                            fl.FieldName
-                        }),
-                        f.ScriptReferences,
-                        f.HiddenByScript
-                    }),
-                    ScriptReferences = scriptReferences
+                            GeneratedOn = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            Version = "2.0",
+                            Description = "Comprehensive data dictionary with enhanced metadata for Power FX compatibility"
+                        },
+                        Entities = fieldMetadatas.GroupBy(f => f.EntityName).Select(entityGroup => new
+                        {
+                            EntityName = entityGroup.Key,
+                            Fields = entityGroup.Select(f => new
+                            {
+                                // Basic Properties
+                                f.EntityName,
+                                f.SchemaName,
+                                f.DisplayName,
+                                f.Type,
+                                f.RequiredLevel,
+                                f.Description,
+                                f.MaxLength,
+                                f.Precision,
+                                f.MinValue,
+                                f.MaxValue,
+
+                                // Enhanced Properties
+                                f.AttributeOf,
+                                f.AttributeTypeName,
+                                f.CanBeSecuredForCreate,
+                                f.CanBeSecuredForRead,
+                                f.CanBeSecuredForUpdate,
+                                f.ColumnNumber,
+                                f.DeprecatedVersion,
+                                f.HasChanged,
+                                f.InheritsFrom,
+                                f.IntroducedVersion,
+                                f.IsCustomAttribute,
+                                f.IsDataSourceSecret,
+                                f.IsFilterable,
+                                f.IsLogical,
+                                f.IsManaged,
+                                f.IsPrimaryId,
+                                f.IsPrimaryName,
+                                f.IsRequiredForForm,
+                                f.IsRetrievable,
+                                f.IsSearchable,
+                                f.IsSecured,
+                                f.IsValidForCreate,
+                                f.IsValidForForm,
+                                f.IsValidForGrid,
+                                f.IsValidForRead,
+                                f.IsValidForUpdate,
+                                f.IsValidODataAttribute,
+                                f.LinkedAttributeId,
+                                f.MetadataId,
+                                f.SourceType,
+                                f.AutoNumberFormat,
+                                f.DatabaseLength,
+                                f.Format,
+                                f.Formula,
+                                f.RollupState,
+                                f.ExternalName,
+                                f.DefaultValue,
+                                f.Targets,
+                                f.RelationshipName,
+
+                                // Option Set Information
+                                OptionSet = f.OptionSet?.Select(o => new
+                                {
+                                    o.Value,
+                                    o.Label,
+                                    o.Description,
+                                    o.Color,
+                                    o.IsDefault
+                                }),
+
+                                // Form and Script Information
+                                FormLocations = f.FormLocations?.Select(fl => new
+                                {
+                                    fl.FormName,
+                                    fl.TabName,
+                                    fl.TabVisible,
+                                    fl.SectionName,
+                                    fl.SectionVisible,
+                                    fl.FieldVisible,
+                                    fl.FieldName,
+                                    fl.FieldDescription
+                                }),
+                                f.ScriptReferences,
+                                f.HiddenByScript
+                            }).ToArray()
+                        }).ToArray(),
+                        ScriptReferences = scriptReferences,
+                        Summary = new
+                        {
+                            TotalEntities = fieldMetadatas.GroupBy(f => f.EntityName).Count(),
+                            TotalFields = fieldMetadatas.Count,
+                            CustomFields = fieldMetadatas.Count(f => f.IsCustomAttribute),
+                            ManagedFields = fieldMetadatas.Count(f => f.IsManaged),
+                            CalculatedFields = fieldMetadatas.Count(f => f.SourceType == "Calculated"),
+                            RollupFields = fieldMetadatas.Count(f => f.SourceType == "Rollup"),
+                            SecuredFields = fieldMetadatas.Count(f => f.IsSecured),
+                            FieldsWithScripts = fieldMetadatas.Count(f => f.ScriptReferences?.Any() == true)
+                        }
+                    }
                 };
 
                 using (var memoryStream = new MemoryStream())
@@ -265,7 +344,49 @@ namespace DataDictionary
                             MaxLength = attribute.MaxLength,
                             Precision = attribute.Precision,
                             MinValue = attribute.MinValue,
-                            MaxValue = attribute.MaxValue
+                            MaxValue = attribute.MaxValue,
+
+                            // Enhanced metadata properties
+                            AttributeOf = attribute.AttributeOf,
+                            AttributeTypeName = attribute.AttributeTypeName?.Value,
+                            CanBeSecuredForCreate = attribute.CanBeSecuredForCreate?.Value ?? false,
+                            CanBeSecuredForRead = attribute.CanBeSecuredForRead?.Value ?? false,
+                            CanBeSecuredForUpdate = attribute.CanBeSecuredForUpdate?.Value ?? false,
+                            ColumnNumber = attribute.ColumnNumber?.Value,
+                            DeprecatedVersion = attribute.DeprecatedVersion,
+                            HasChanged = attribute.HasChanged?.Value ?? false,
+                            InheritsFrom = attribute.InheritsFrom,
+                            IntroducedVersion = attribute.IntroducedVersion,
+                            IsCustomAttribute = attribute.IsCustomAttribute?.Value ?? false,
+                            IsDataSourceSecret = attribute.IsDataSourceSecret?.Value ?? false,
+                            IsFilterable = attribute.IsFilterable?.Value ?? false,
+                            IsLogical = attribute.IsLogical?.Value ?? false,
+                            IsManaged = attribute.IsManaged?.Value ?? false,
+                            IsPrimaryId = attribute.IsPrimaryId?.Value ?? false,
+                            IsPrimaryName = attribute.IsPrimaryName?.Value ?? false,
+                            IsRequiredForForm = attribute.IsRequiredForForm?.Value ?? false,
+                            IsRetrievable = attribute.IsRetrievable?.Value ?? false,
+                            IsSearchable = attribute.IsSearchable?.Value ?? false,
+                            IsSecured = attribute.IsSecured?.Value ?? false,
+                            IsValidForCreate = attribute.IsValidForCreate?.Value ?? false,
+                            IsValidForForm = attribute.IsValidForForm?.Value ?? false,
+                            IsValidForGrid = attribute.IsValidForGrid?.Value ?? false,
+                            IsValidForRead = attribute.IsValidForRead?.Value ?? false,
+                            IsValidForUpdate = attribute.IsValidForUpdate?.Value ?? false,
+                            IsValidODataAttribute = attribute.IsValidODataAttribute,
+                            LinkedAttributeId = attribute.LinkedAttributeId?.ToString(),
+                            MetadataId = attribute.MetadataId?.ToString(),
+                            SourceType = GetSourceType(attribute.SourceType),
+                            AutoNumberFormat = GetAutoNumberFormat(attribute),
+                            DatabaseLength = GetDatabaseLength(attribute),
+                            Format = GetAttributeFormat(attribute),
+                            Formula = GetFormula(attribute),
+                            RollupState = GetRollupState(attribute),
+                            ExternalName = GetExternalName(attribute),
+                            OptionSet = GetOptionSetMetadata(attribute),
+                            DefaultValue = GetDefaultValue(attribute),
+                            Targets = GetTargets(attribute),
+                            RelationshipName = GetRelationshipName(attribute)
                         };
 
                         fieldMetadataList.Add(fieldMetadata);
@@ -279,6 +400,217 @@ namespace DataDictionary
             {
                 tracingService.Trace($"GetFieldsInSolution failed: {ex}");
                 throw;
+            }
+        }
+
+        private string GetSourceType(int? sourceType)
+        {
+            switch (sourceType ?? 0)
+            {
+                case 1:
+                    return "Calculated";
+                case 2:
+                    return "Rollup";
+                default:
+                    return "Standard";
+            }
+        }
+
+        private string GetAutoNumberFormat(AttributeMetadata attribute)
+        {
+            try
+            {
+                var stringAttribute = attribute as StringAttributeMetadata;
+                return stringAttribute?.AutoNumberFormat ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private int? GetDatabaseLength(AttributeMetadata attribute)
+        {
+            try
+            {
+                var stringAttribute = attribute as StringAttributeMetadata;
+                return stringAttribute?.DatabaseLength;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string GetAttributeFormat(AttributeMetadata attribute)
+        {
+            try
+            {
+                // Different attribute types have different format properties
+                if (attribute is StringAttributeMetadata stringAttr)
+                    return stringAttr.Format?.ToString() ?? "";
+                if (attribute is DateTimeAttributeMetadata dateAttr)
+                    return dateAttr.Format?.ToString() ?? "";
+                if (attribute is IntegerAttributeMetadata intAttr)
+                    return intAttr.Format?.ToString() ?? "";
+                if (attribute is MoneyAttributeMetadata moneyAttr)
+                    return moneyAttr.PrecisionSource?.ToString() ?? "";
+                return "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private string GetFormula(AttributeMetadata attribute)
+        {
+            try
+            {
+                var property = attribute.GetType().GetProperty("FormulaDefinition");
+                return property?.GetValue(attribute)?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private string GetRollupState(AttributeMetadata attribute)
+        {
+            try
+            {
+                var property = attribute.GetType().GetProperty("RollupState");
+                return property?.GetValue(attribute)?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private string GetExternalName(AttributeMetadata attribute)
+        {
+            try
+            {
+                var property = attribute.GetType().GetProperty("ExternalName");
+                return property?.GetValue(attribute)?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private List<OptionMetadata> GetOptionSetMetadata(AttributeMetadata attribute)
+        {
+            try
+            {
+                var options = new List<OptionMetadata>();
+
+                if (attribute is PicklistAttributeMetadata picklistAttr && picklistAttr.OptionSet?.Options != null)
+                {
+                    foreach (var option in picklistAttr.OptionSet.Options)
+                    {
+                        options.Add(new OptionMetadata
+                        {
+                            Value = option.Value,
+                            Label = option.Label?.UserLocalizedLabel?.Label ?? "",
+                            Description = option.Description?.UserLocalizedLabel?.Label ?? "",
+                            Color = option.Color ?? "",
+                            IsDefault = false // Would need additional logic to determine default
+                        });
+                    }
+                }
+                else if (attribute is StateAttributeMetadata stateAttr && stateAttr.OptionSet?.Options != null)
+                {
+                    foreach (var option in stateAttr.OptionSet.Options)
+                    {
+                        options.Add(new OptionMetadata
+                        {
+                            Value = option.Value,
+                            Label = option.Label?.UserLocalizedLabel?.Label ?? "",
+                            Description = option.Description?.UserLocalizedLabel?.Label ?? "",
+                            Color = option.Color ?? "",
+                            IsDefault = false
+                        });
+                    }
+                }
+                else if (attribute is StatusAttributeMetadata statusAttr && statusAttr.OptionSet?.Options != null)
+                {
+                    foreach (var option in statusAttr.OptionSet.Options)
+                    {
+                        options.Add(new OptionMetadata
+                        {
+                            Value = option.Value,
+                            Label = option.Label?.UserLocalizedLabel?.Label ?? "",
+                            Description = option.Description?.UserLocalizedLabel?.Label ?? "",
+                            Color = option.Color ?? "",
+                            IsDefault = false
+                        });
+                    }
+                }
+
+                return options;
+            }
+            catch
+            {
+                return new List<OptionMetadata>();
+            }
+        }
+
+        private object GetDefaultValue(AttributeMetadata attribute)
+        {
+            try
+            {
+                if (attribute is BooleanAttributeMetadata boolAttr)
+                    return boolAttr.DefaultValue;
+                if (attribute is IntegerAttributeMetadata intAttr)
+                    return intAttr.DefaultValue;
+                if (attribute is DecimalAttributeMetadata decAttr)
+                    return decAttr.DefaultValue;
+                if (attribute is DoubleAttributeMetadata dblAttr)
+                    return dblAttr.DefaultValue;
+                if (attribute is MoneyAttributeMetadata moneyAttr)
+                    return moneyAttr.DefaultValue;
+                if (attribute is PicklistAttributeMetadata pickAttr)
+                    return pickAttr.DefaultFormValue;
+                if (attribute is StringAttributeMetadata strAttr)
+                    return strAttr.DefaultValue;
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string[] GetTargets(AttributeMetadata attribute)
+        {
+            try
+            {
+                if (attribute is LookupAttributeMetadata lookupAttr && lookupAttr.Targets != null)
+                    return lookupAttr.Targets;
+                return new string[0];
+            }
+            catch
+            {
+                return new string[0];
+            }
+        }
+
+        private string GetRelationshipName(AttributeMetadata attribute)
+        {
+            try
+            {
+                if (attribute is LookupAttributeMetadata lookupAttr)
+                    return lookupAttr.RelationshipName ?? "";
+                return "";
+            }
+            catch
+            {
+                return "";
             }
         }
         private List<WebResourceInfo> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
@@ -323,6 +655,215 @@ namespace DataDictionary
             catch (Exception ex)
             {
                 tracingService.Trace($"GetWebResourcesInSolution failed: {ex}");
+                throw;
+            }
+        }
+
+        private Dictionary<string, List<string>> AnalyzeScripts(List<FieldMetadata> fieldMetadatas, List<WebResourceInfo> webResources, ITracingService tracingService)
+        {
+            try
+            {
+                tracingService.Trace("Starting script analysis...");
+                var scriptReferences = new Dictionary<string, List<string>>();
+
+                foreach (var webResource in webResources.Where(wr => wr.Name.EndsWith(".js")))
+                {
+                    tracingService.Trace($"Analyzing script: {webResource.Name}");
+                    
+                    if (string.IsNullOrEmpty(webResource.Content))
+                        continue;
+
+                    // Decode base64 content
+                    var content = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(webResource.Content));
+                    
+                    // Analyze each field to see if it's referenced in this script
+                    foreach (var field in fieldMetadatas)
+                    {
+                        var fieldKey = $"{field.EntityName}.{field.SchemaName}";
+                        
+                        // Check for various patterns that might reference the field
+                        var patterns = new[]
+                        {
+                            field.SchemaName,
+                            $"'{field.SchemaName}'",
+                            $"\"{field.SchemaName}\"",
+                            $"getAttribute(\"{field.SchemaName}\")",
+                            $"getAttribute('{field.SchemaName}')",
+                            $"getControl(\"{field.SchemaName}\")",
+                            $"getControl('{field.SchemaName}')"
+                        };
+
+                        if (patterns.Any(pattern => content.Contains(pattern)))
+                        {
+                            if (!scriptReferences.ContainsKey(fieldKey))
+                                scriptReferences[fieldKey] = new List<string>();
+                            
+                            scriptReferences[fieldKey].Add(webResource.Name);
+
+                            // Check if field is being hidden by script
+                            if (content.Contains($"{field.SchemaName}\").setVisible(false)") ||
+                                content.Contains($"{field.SchemaName}').setVisible(false)"))
+                            {
+                                field.HiddenByScript = true;
+                            }
+                        }
+                    }
+                }
+
+                // Update field script references
+                foreach (var field in fieldMetadatas)
+                {
+                    var fieldKey = $"{field.EntityName}.{field.SchemaName}";
+                    if (scriptReferences.ContainsKey(fieldKey))
+                    {
+                        field.ScriptReferences = scriptReferences[fieldKey];
+                    }
+                    else
+                    {
+                        field.ScriptReferences = new List<string>();
+                    }
+                }
+
+                tracingService.Trace($"Script analysis completed. Found references for {scriptReferences.Count} fields.");
+                return scriptReferences;
+            }
+            catch (Exception ex)
+            {
+                tracingService.Trace($"AnalyzeScripts failed: {ex}");
+                throw;
+            }
+        }
+
+        private byte[] GenerateCsvDocument(List<FieldMetadata> fieldMetadatas, Dictionary<string, List<string>> scriptReferences)
+        {
+            try
+            {
+                var csv = new StringBuilder();
+                
+                // Enhanced CSV Headers with comprehensive metadata
+                csv.AppendLine("EntityName,SchemaName,DisplayName,Type,AttributeTypeName,RequiredLevel,Description," +
+                              "MaxLength,Precision,MinValue,MaxValue,ColumnNumber,SourceType,IntroducedVersion," +
+                              "DeprecatedVersion,IsCustomAttribute,IsManaged,IsPrimaryId,IsPrimaryName," +
+                              "IsFilterable,IsSearchable,IsRetrievable,IsSecured,IsValidForCreate,IsValidForRead," +
+                              "IsValidForUpdate,IsValidForForm,IsValidForGrid,CanBeSecuredForCreate," +
+                              "CanBeSecuredForRead,CanBeSecuredForUpdate,IsLogical,IsDataSourceSecret," +
+                              "IsRequiredForForm,IsValidODataAttribute,DefaultValue,Format,AutoNumberFormat," +
+                              "DatabaseLength,Formula,RollupState,ExternalName,RelationshipName,Targets," +
+                              "OptionSetValues,FormLocations,ScriptReferences,HiddenByScript,LinkedAttributeId," +
+                              "MetadataId,AttributeOf,InheritsFrom,HasChanged");
+                
+                foreach (var field in fieldMetadatas)
+                {
+                    var formLocations = field.FormLocations?.Any() == true 
+                        ? string.Join("; ", field.FormLocations.Select(fl => $"{fl.FormName}:{fl.TabName}:{fl.SectionName}:{fl.FieldVisible}"))
+                        : "";
+                    
+                    var scriptRefs = field.ScriptReferences?.Any() == true 
+                        ? string.Join("; ", field.ScriptReferences)
+                        : "";
+
+                    var optionSetValues = field.OptionSet?.Any() == true
+                        ? string.Join("; ", field.OptionSet.Select(o => $"{o.Value}:{o.Label}"))
+                        : "";
+
+                    var targets = field.Targets?.Any() == true
+                        ? string.Join("; ", field.Targets)
+                        : "";
+
+                    // Escape CSV values
+                    csv.AppendLine($"\"{EscapeCsvValue(field.EntityName)}\"," +
+                                  $"\"{EscapeCsvValue(field.SchemaName)}\"," +
+                                  $"\"{EscapeCsvValue(field.DisplayName)}\"," +
+                                  $"\"{EscapeCsvValue(field.Type)}\"," +
+                                  $"\"{EscapeCsvValue(field.AttributeTypeName)}\"," +
+                                  $"\"{EscapeCsvValue(field.RequiredLevel)}\"," +
+                                  $"\"{EscapeCsvValue(field.Description)}\"," +
+                                  $"\"{field.MaxLength}\"," +
+                                  $"\"{field.Precision}\"," +
+                                  $"\"{field.MinValue}\"," +
+                                  $"\"{field.MaxValue}\"," +
+                                  $"\"{field.ColumnNumber}\"," +
+                                  $"\"{EscapeCsvValue(field.SourceType)}\"," +
+                                  $"\"{EscapeCsvValue(field.IntroducedVersion)}\"," +
+                                  $"\"{EscapeCsvValue(field.DeprecatedVersion)}\"," +
+                                  $"\"{field.IsCustomAttribute}\"," +
+                                  $"\"{field.IsManaged}\"," +
+                                  $"\"{field.IsPrimaryId}\"," +
+                                  $"\"{field.IsPrimaryName}\"," +
+                                  $"\"{field.IsFilterable}\"," +
+                                  $"\"{field.IsSearchable}\"," +
+                                  $"\"{field.IsRetrievable}\"," +
+                                  $"\"{field.IsSecured}\"," +
+                                  $"\"{field.IsValidForCreate}\"," +
+                                  $"\"{field.IsValidForRead}\"," +
+                                  $"\"{field.IsValidForUpdate}\"," +
+                                  $"\"{field.IsValidForForm}\"," +
+                                  $"\"{field.IsValidForGrid}\"," +
+                                  $"\"{field.CanBeSecuredForCreate}\"," +
+                                  $"\"{field.CanBeSecuredForRead}\"," +
+                                  $"\"{field.CanBeSecuredForUpdate}\"," +
+                                  $"\"{field.IsLogical}\"," +
+                                  $"\"{field.IsDataSourceSecret}\"," +
+                                  $"\"{field.IsRequiredForForm}\"," +
+                                  $"\"{field.IsValidODataAttribute}\"," +
+                                  $"\"{EscapeCsvValue(field.DefaultValue?.ToString())}\"," +
+                                  $"\"{EscapeCsvValue(field.Format)}\"," +
+                                  $"\"{EscapeCsvValue(field.AutoNumberFormat)}\"," +
+                                  $"\"{field.DatabaseLength}\"," +
+                                  $"\"{EscapeCsvValue(field.Formula)}\"," +
+                                  $"\"{EscapeCsvValue(field.RollupState)}\"," +
+                                  $"\"{EscapeCsvValue(field.ExternalName)}\"," +
+                                  $"\"{EscapeCsvValue(field.RelationshipName)}\"," +
+                                  $"\"{EscapeCsvValue(targets)}\"," +
+                                  $"\"{EscapeCsvValue(optionSetValues)}\"," +
+                                  $"\"{EscapeCsvValue(formLocations)}\"," +
+                                  $"\"{EscapeCsvValue(scriptRefs)}\"," +
+                                  $"\"{field.HiddenByScript}\"," +
+                                  $"\"{EscapeCsvValue(field.LinkedAttributeId)}\"," +
+                                  $"\"{EscapeCsvValue(field.MetadataId)}\"," +
+                                  $"\"{EscapeCsvValue(field.AttributeOf)}\"," +
+                                  $"\"{EscapeCsvValue(field.InheritsFrom)}\"," +
+                                  $"\"{field.HasChanged}\"");
+                }
+                
+                return Encoding.UTF8.GetBytes(csv.ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidPluginExecutionException("Error generating CSV document: " + ex.Message, ex);
+            }
+        }
+
+        private string EscapeCsvValue(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return "";
+                
+            return value.Replace("\"", "\"\"");
+        }
+
+        private Guid StoreDocumentAsNote(IOrganizationService service, byte[] documentBytes, string fileName, string description, ITracingService tracingService)
+        {
+            try
+            {
+                tracingService.Trace($"Storing document as note: {fileName}");
+
+                // Create the annotation (note) record
+                var note = new Entity("annotation");
+                note["subject"] = fileName;
+                note["notetext"] = description;
+                note["filename"] = fileName;
+                note["documentbody"] = Convert.ToBase64String(documentBytes);
+                note["mimetype"] = fileName.EndsWith(".json") ? "application/json" : "text/csv";
+
+                var noteId = service.Create(note);
+                tracingService.Trace($"Document stored successfully. Note ID: {noteId}");
+                
+                return noteId;
+            }
+            catch (Exception ex)
+            {
+                tracingService.Trace($"StoreDocumentAsNote failed: {ex}");
                 throw;
             }
         }

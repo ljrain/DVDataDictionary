@@ -1,3 +1,5 @@
+using System;
+
 namespace DataDictionary
 {
     /// <summary>  
@@ -5,6 +7,11 @@ namespace DataDictionary
     /// </summary>  
     public class WebResourceInfo
     {
+        /// <summary>  
+        /// Gets or sets the unique identifier of the web resource.  
+        /// </summary>  
+        public Guid Id { get; set; }
+
         /// <summary>  
         /// Gets or sets the name of the web resource.  
         /// </summary>  

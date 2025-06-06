@@ -106,9 +106,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataDictionaryPlugin.cs" />
+    <Compile Include="EntityMetadataInfo.cs" />
     <Compile Include="FieldFormLocation.cs" />
     <Compile Include="FieldMetadata.cs" />
     <Compile Include="FormFieldInspector.cs" />
+    <Compile Include="WebResourceInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
