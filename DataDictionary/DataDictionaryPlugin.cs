@@ -10,6 +10,8 @@ using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Crm.Sdk.Messages;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace DataDictionary
 {
@@ -154,6 +156,15 @@ namespace DataDictionary
                                 Permissions = field.Permissions
                             })
                             .ToList();
+
+                        if (field.FormLocations == null || !field.FormLocations.Any())
+                        {
+                            tracingService.Trace($"No form locations found for field {field.SchemaName} on entity {entity.LogicalName}");
+                        }
+                        else
+                        {
+                            tracingService.Trace($"Form locations for field {field.SchemaName} on entity {entity.LogicalName}: {string.Join(";", field.FormLocations.Select(f => f.FormName))}");
+                        }
 
                         // Set required level and permissions if available
                         // (Assumes FieldMetadata.Type and RequiredLevel are already set from metadata)
@@ -388,14 +399,20 @@ namespace DataDictionary
             using (var memoryStream = new MemoryStream())
             using (var writer = new StreamWriter(memoryStream))
             {
-                // Write CSV header
-                writer.WriteLine("EntityName,SchemaName,DisplayName,Type,RequiredLevel,Description,MaxLength,Precision,MinValue,MaxValue,HiddenByScript,ScriptReferences");
+                // Add FormNames and SolutionNames to the header
+                writer.WriteLine("EntityName,SchemaName,DisplayName,Type,RequiredLevel,Description,MaxLength,Precision,MinValue,MaxValue,HiddenByScript,ScriptReferences,FormNames,SolutionNames");
 
-                // Write CSV rows for each field metadata
                 foreach (var field in fieldMetadatas)
                 {
                     var scriptRefs = field.ScriptReferences != null ? string.Join(";", field.ScriptReferences) : string.Empty;
-                    writer.WriteLine($"{field.EntityName},{field.SchemaName},{field.DisplayName},{field.Type},{field.RequiredLevel},{field.Description},{field.MaxLength},{field.Precision},{field.MinValue},{field.MaxValue},{field.HiddenByScript},{scriptRefs}");
+                    var formNames = field.FormLocations != null && field.FormLocations.Any()
+                        ? string.Join(";", field.FormLocations.Select(f => f.FormName).Distinct())
+                        : string.Empty;
+                    var solutionNames = field.SolutionNames != null && field.SolutionNames.Any()
+                        ? string.Join(";", field.SolutionNames.Distinct())
+                        : string.Empty;
+
+                    writer.WriteLine($"{field.EntityName},{field.SchemaName},{field.DisplayName},{field.Type},{field.RequiredLevel},{field.Description},{field.MaxLength},{field.Precision},{field.MinValue},{field.MaxValue},{field.HiddenByScript},{scriptRefs},{formNames},{solutionNames}");
                 }
 
                 writer.Flush();
@@ -420,6 +437,17 @@ namespace DataDictionary
             tracingService.Trace($"Note created with ID: {noteId}");
             return noteId;
         }
+
+        public string GenerateJsonDocument(object data)
+        {
+            var settings = new Newtonsoft.Json.JsonSerializerSettings
+            {
+                NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore, // Ignore nulls
+                Formatting = Newtonsoft.Json.Formatting.Indented, // Pretty print
+                ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver() // camelCase
+            };
+            return Newtonsoft.Json.JsonConvert.SerializeObject(data, settings);
+        }
         // Other methods remain unchanged...
     }
 
@@ -427,7 +455,7 @@ namespace DataDictionary
     {
         public List<FieldMetadata> Fields { get; set; }
         public List<string> ScriptReferences { get; set; }
-        public string AdditionalProperty { get; set; }
+        public string AdditionalProperty { get; set; } // Uncommenting AdditionalProperty
         public List<string> SolutionNames { get; set; } // Add this property
     }
     // Fix for CS0117: Add the 'Permissions' property to the 'FieldFormLocation' class definition.
