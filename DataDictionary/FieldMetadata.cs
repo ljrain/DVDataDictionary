@@ -6,6 +6,8 @@ using System.Collections.Generic;
 
 public class FieldMetadata
 {
+    public string EntityFieldName { get; set; } // Logical name of the field in the entity
+
     public string EntityName { get; set; }
     public string SchemaName { get; set; }
     public string DisplayName { get; set; }

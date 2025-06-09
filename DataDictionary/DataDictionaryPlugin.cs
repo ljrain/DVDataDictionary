@@ -246,7 +246,7 @@ namespace DataDictionary
 
             var query = new QueryExpression("solutioncomponent")
             {
-                ColumnSet = new ColumnSet("objectid"),
+                ColumnSet = new ColumnSet("objectid", "description", "createdby", "friendlyname", "uniquename"),
                 Criteria = new FilterExpression
                 {
                     Conditions =
@@ -297,13 +297,68 @@ namespace DataDictionary
 
                 foreach (var attribute in retrieveEntityResponse.EntityMetadata.Attributes)
                 {
+                    // Try to get additional metadata
+                    int? maxLength = null;
+                    int? precision = null;
+                    int? minValue = null;
+                    int? maxValue = null;
+
+                    // String length
+                    if (attribute is StringAttributeMetadata stringAttr)
+                    {
+                        maxLength = stringAttr.MaxLength;
+                    }
+                    // Decimal precision
+                    if (attribute is DecimalAttributeMetadata decimalAttr)
+                    {
+                        precision = decimalAttr.Precision;
+                        minValue = decimalAttr.MinValue.HasValue ? (int?)decimal.ToInt32(decimalAttr.MinValue.Value) : null;
+                        maxValue = decimalAttr.MaxValue.HasValue ? (int?)decimal.ToInt32(decimalAttr.MaxValue.Value) : null;
+                    }
+                    // Double precision
+                    if (attribute is DoubleAttributeMetadata doubleAttr)
+                    {
+                        precision = doubleAttr.Precision;
+                        minValue = doubleAttr.MinValue.HasValue ? (int?)doubleAttr.MinValue.Value : null;
+                        maxValue = doubleAttr.MaxValue.HasValue ? (int?)doubleAttr.MaxValue.Value : null;
+                    }
+                    // Integer min/max
+                    if (attribute is IntegerAttributeMetadata intAttr)
+                    {
+                        minValue = intAttr.MinValue;
+                        maxValue = intAttr.MaxValue;
+                    }
+                    // Money precision
+                    if (attribute is MoneyAttributeMetadata moneyAttr)
+                    {
+                        precision = moneyAttr.Precision;
+                        minValue = moneyAttr.MinValue.HasValue ? (int?)Convert.ToInt32(moneyAttr.MinValue.Value) : null;
+                        maxValue = moneyAttr.MaxValue.HasValue ? (int?)Convert.ToInt32(moneyAttr.MaxValue.Value) : null;
+                    }
+
+                    // Required level
+                    string requiredLevel = null;
+                    if (attribute.RequiredLevel != null)
+                    {
+                        requiredLevel = attribute.RequiredLevel.Value.ToString();
+                    }
+
+                    // Permissions (not available directly, placeholder)
+                    string permissions = null;
+
                     var fieldMetadata = new FieldMetadata
                     {
                         EntityName = entityMetadata.LogicalName,
                         SchemaName = attribute.SchemaName,
                         DisplayName = attribute.DisplayName?.UserLocalizedLabel?.Label,
                         Description = attribute.Description?.UserLocalizedLabel?.Label,
-                        Type = attribute.AttributeTypeName?.Value // <-- Add this line
+                        Type = attribute.AttributeTypeName?.Value,
+                        RequiredLevel = requiredLevel,
+                        MaxLength = maxLength,
+                        Precision = precision,
+                        MinValue = minValue,
+                        MaxValue = maxValue,
+                        Permissions = permissions
                     };
 
                     fieldMetadatas.Add(fieldMetadata);
