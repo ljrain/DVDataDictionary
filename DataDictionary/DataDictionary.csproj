@@ -109,6 +109,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataDictionaryPlugin.cs" />
+    <Compile Include="DataverseDataHelper.cs" />
     <Compile Include="FieldFormLocation.cs" />
     <Compile Include="FieldMetadata.cs" />
     <Compile Include="FormFieldInspector.cs" />
