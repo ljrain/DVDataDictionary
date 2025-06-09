@@ -127,6 +127,9 @@ namespace DataDictionary
                     }
                 }
 
+                GetFormsForSolution(service, allEntityMetadatas, allFieldMetadatas, allWebResources, tracingService);
+
+
                 tracingService.Trace($"DataDictionaryPlugin: Total unique entities: {allEntityMetadatas.Count}");
                 tracingService.Trace($"DataDictionaryPlugin: Total unique fields: {allFieldMetadatas.Count}");
                 tracingService.Trace($"DataDictionaryPlugin: Total unique web resources: {allWebResources.Count}");
@@ -573,6 +576,11 @@ namespace DataDictionary
             foreach (var field in allFieldMetadatas)
             {
                 helper.UpsertFieldRecord(field,entityRecords);
+                foreach (var formloc in field.FormLocations)
+                { 
+                    helper.UpsertFieldFormLocation(formloc,formloc.FieldName,formloc.FormName)
+
+                }
             }
 
             // Store Web Resources
@@ -581,11 +589,15 @@ namespace DataDictionary
                 helper.UpsertWebResourceRecord(wr);
             }
 
-            //// Store Script References
-            //foreach (var script in scriptReferences.Distinct())
-            //{
-            //    helper.UpsertScriptReference(script);
-            //}
+            // Store Script References
+            foreach (var script in scriptReferences.Distinct())
+            {
+                helper.UpsertScriptReference(script);
+            }
+
+            
+
+
 
             tracingService.Trace("Data Dictionary data stored in Dataverse tables.");
         }
@@ -601,6 +613,101 @@ namespace DataDictionary
             // Wrap the data in the DataDictionary parent
             var root = new { DataDictionary = data };
             return Newtonsoft.Json.JsonConvert.SerializeObject(root, settings);
+        }
+        private void GetFormsForSolution(
+            IOrganizationService service,
+            List<EntityMetadata> allEntityMetadatas,
+            List<FieldMetadata> allFieldMetadatas,
+            List<WebResourceInfo> allWebResources,
+            ITracingService tracingService)
+        {
+            tracingService.Trace("Retrieving forms for solution.");
+
+            foreach (var entity in allEntityMetadatas)
+            {
+                tracingService.Trace($"Processing forms for entity: {entity.LogicalName}");
+
+                // Retrieve forms for the entity
+                var query = new QueryExpression("systemform")
+                {
+                    ColumnSet = new ColumnSet("name", "formxml"),
+                    Criteria = new FilterExpression
+                    {
+                        Conditions =
+                        {
+                            new ConditionExpression("objecttypecode", ConditionOperator.Equal, entity.LogicalName),
+                            new ConditionExpression("type", ConditionOperator.In, new[] { 2, 7 }) // Main and Quick Create forms
+                        }
+                    }
+                };
+
+                var forms = service.RetrieveMultiple(query);
+
+                foreach (var form in forms.Entities)
+                {
+                    var formName = form.GetAttributeValue<string>("name");
+                    var formXml = form.GetAttributeValue<string>("formxml");
+
+                    tracingService.Trace($"Processing form: {formName}");
+
+                    // Parse form XML to extract field locations
+                    var xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(formXml);
+
+                    var tabs = xmlDoc.SelectNodes("//tab");
+                    if (tabs != null)
+                    {
+                        foreach (XmlNode tab in tabs)
+                        {
+                            var tabName = tab.Attributes?["name"]?.Value;
+                            var tabVisible = tab.Attributes?["visible"]?.Value == "true";
+
+                            var sections = tab.SelectNodes("columns/column/sections/section");
+                            if (sections != null)
+                            {
+                                foreach (XmlNode section in sections)
+                                {
+                                    var sectionName = section.Attributes?["name"]?.Value;
+                                    var sectionVisible = section.Attributes?["visible"]?.Value == "true";
+
+                                    var fields = section.SelectNodes("rows/row/cell/control");
+                                    if (fields != null)
+                                    {
+                                        foreach (XmlNode field in fields)
+                                        {
+                                            var fieldName = field.Attributes?["datafieldname"]?.Value;
+                                            if (!string.IsNullOrEmpty(fieldName))
+                                            {
+                                                var fieldMetadata = allFieldMetadatas.FirstOrDefault(f => f.EntityName == entity.LogicalName && f.SchemaName == fieldName);
+                                                if (fieldMetadata != null)
+                                                {
+                                                    if (fieldMetadata.FormLocations == null)
+                                                    {
+                                                        fieldMetadata.FormLocations = new List<FieldFormLocation>();
+                                                    }
+
+                                                    fieldMetadata.FormLocations.Add(new FieldFormLocation
+                                                    {
+                                                        FormName = formName,
+                                                        TabName = tabName,
+                                                        TabVisible = tabVisible,
+                                                        SectionName = sectionName,
+                                                        SectionVisible = sectionVisible,
+                                                        FieldVisible = true,
+                                                        FieldName = fieldName
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            tracingService.Trace("Forms retrieval and processing completed.");
         }
         // Other methods remain unchanged...
     }

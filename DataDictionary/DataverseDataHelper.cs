@@ -57,21 +57,30 @@ namespace DataDictionary
             try
             {
                 var entity = new Entity("ljr_column");
-                //entity["ljr_table"] = field.
                 entity["ljr_name"] = field.EntityName.ToLower() + "." + field.SchemaName.ToLower();
                 entity["ljr_schemaname"] = field.SchemaName;
                 entity["ljr_displayname"] = field.DisplayName;
                 entity["ljr_description"] = field.Description;
                 entity["ljr_type"] = field.Type;
-                entity["ljr_requiredlevel"] = field.RequiredLevel;
-                entity["ljr_maxlength"] = field.MaxLength;
+
                 entity["ljr_precision"] = field.Precision;
-                entity["ljr_minvalue"] = field.MinValue;
-                entity["ljr_maxvalue"] = field.MaxValue;
-                entity["ljr_hiddenbyscript"] = field.HiddenByScript;
-                entity["ljr_permissions"] = field.Permissions;
+
+                // Only set min/max if the type is correct for the Dataverse column
+                // Only set for supported types (IntegerType, DecimalType, DoubleType, MoneyType)
+                if (!string.IsNullOrEmpty(field.Type) && (
+                    field.Type.Contains("Integer") ||
+                    field.Type.Contains("Decimal") ||
+                    field.Type.Contains("Double") ||
+                    field.Type.Contains("Money")))
+                {
+                    //if (field.MinValue.HasValue)
+                    //    entity["ljr_minvalue"] = field.MinValue.Value;
+                    //if (field.MaxValue.HasValue)
+                    //    entity["ljr_maxvalue"] = field.MaxValue.Value;
+                }
+
+                entity["ljr_hiddenbyscript"] = field.HiddenByScript.ToString();
                 entity["ljr_solutionname"] = field.SolutionNames != null ? string.Join(";", field.SolutionNames) : null;
-                entity["ljr_scriptreferences"] = field.ScriptReferences != null ? string.Join(";", field.ScriptReferences) : null;
                 _tracing.Trace(field.ToString());
 
                 var query = new QueryExpression("ljr_column")
@@ -81,7 +90,6 @@ namespace DataDictionary
                     {
                         Conditions =
                         {
-                            //new ConditionExpression("ljr_table", ConditionOperator.Equal, entityRecords[field.EntityName][0]),
                             new ConditionExpression("ljr_name", ConditionOperator.Equal, field.EntityName.ToLower() + "." + field.SchemaName.ToLower())
                         }
                     }
@@ -166,11 +174,88 @@ namespace DataDictionary
                 _tracing.Trace($"Created script reference record for {scriptName}");
             }
         }
+
+        public List<Entity> GetFormsForSolution(Guid solutionId)
+        {
+            // 60 = System Form (main forms, quick view, quick create, etc.)
+            var query = new QueryExpression("solutioncomponent")
+            {
+                ColumnSet = new ColumnSet("objectid"),
+                Criteria = new FilterExpression
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("componenttype", ConditionOperator.Equal, 60), // 60 = System Form
+                        new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId)
+                    }
+                }
+            };
+
+            var solutionComponents = _service.RetrieveMultiple(query);
+            var forms = new List<Entity>();
+
+            foreach (var component in solutionComponents.Entities)
+            {
+                var formId = component.GetAttributeValue<Guid>("objectid");
+                var form = _service.Retrieve("systemform", formId, new ColumnSet(true));
+                forms.Add(form);
+            }
+
+            _tracing.Trace($"Found {forms.Count} forms in solution {solutionId}");
+            return forms;
+        }
+
+        public void UpsertFieldFormLocation(FieldFormLocation location, string fieldName, string formId)
+        {
+            try
+            {
+                var entity = new Entity("ljr_fieldformlocation");
+                entity["ljr_fieldname"] = fieldName;
+                entity["ljr_formid"] = formId;
+                entity["ljr_formname"] = location.FormName;
+                entity["ljr_tabname"] = location.TabName;
+                entity["ljr_tabvisible"] = location.TabVisible;
+                entity["ljr_sectionname"] = location.SectionName;
+                entity["ljr_sectionvisible"] = location.SectionVisible;
+                entity["ljr_fieldvisible"] = location.FieldVisible;
+                entity["ljr_fielddescription"] = location.FieldDescription;
+                entity["ljr_requiredlevel"] = location.RequiredLevel;
+                entity["ljr_permissions"] = location.Permissions;
+                entity["ljr_canread"] = location.CanRead;
+                entity["ljr_canwrite"] = location.CanWrite;
+                entity["ljr_cancreate"] = location.CanCreate;
+
+                var query = new QueryExpression("ljr_fieldformlocation")
+                {
+                    ColumnSet = new ColumnSet("ljr_fieldformlocationid"),
+                    Criteria = new FilterExpression
+                    {
+                        Conditions =
+                        {
+                            new ConditionExpression("ljr_fieldname", ConditionOperator.Equal, fieldName),
+                            new ConditionExpression("ljr_formid", ConditionOperator.Equal, formId)
+                        }
+                    }
+                };
+                var results = _service.RetrieveMultiple(query);
+                if (results.Entities.Count > 0)
+                {
+                    entity.Id = results.Entities[0].Id;
+                    _service.Update(entity);
+                    _tracing.Trace($"Updated FieldFormLocation for field {fieldName} on form {formId}");
+                }
+                else
+                {
+                    _service.Create(entity);
+                    _tracing.Trace($"Created FieldFormLocation for field {fieldName} on form {formId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _tracing.Trace($"Exception in UpsertFieldFormLocation for field {fieldName} on form {formId}: {ex}");
+            }
+        }
     }
-    // Add the definition or reference for the missing 'WebResourceInfo' type.
-    // Since the type 'WebResourceInfo' is not defined in the provided context, you need to either:
-    // 1. Define the 'WebResourceInfo' class if it is part of your application.
-    // 2. Add the appropriate using directive or assembly reference if it is part of an external library.
 
     public class WebResourceInfo
     {
