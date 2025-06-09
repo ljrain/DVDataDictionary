@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
-using System.Text.RegularExpressions;
-using System.ServiceModel;
-using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Xml;
 using Microsoft.Xrm.Sdk;
@@ -13,6 +10,8 @@ using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Crm.Sdk.Messages;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace DataDictionary
 {
@@ -28,19 +27,46 @@ namespace DataDictionary
             ITracingService tracingService = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
             try
             {
+                tracingService.Trace("DataDictionaryPlugin: Entered Execute method.");
+
                 var context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
+                tracingService.Trace("DataDictionaryPlugin: Retrieved IPluginExecutionContext.");
+
                 var serviceFactory = (IOrganizationServiceFactory)serviceProvider.GetService(typeof(IOrganizationServiceFactory));
+                tracingService.Trace("DataDictionaryPlugin: Retrieved IOrganizationServiceFactory.");
+
                 var service = serviceFactory.CreateOrganizationService(context.UserId);
+                tracingService.Trace($"DataDictionaryPlugin: Created OrganizationService for UserId: {context.UserId}.");
 
-                tracingService.Trace("Starting DataDictionaryPlugin execution.");
+                string[] solutionNames = null;
+                if (context.InputParameters.Contains("SolutionNames"))
+                {
+                    var param = context.InputParameters["SolutionNames"];
+                    tracingService.Trace($"DataDictionaryPlugin: SolutionNames parameter found, type: {param?.GetType().FullName}");
+                    if (param is string[])
+                    {
+                        solutionNames = (string[])param;
+                    }
+                    else if (param is string)
+                    {
+                        solutionNames = ((string)param)
+                            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim())
+                            .ToArray();
+                    }
+                }
+                else
+                {
+                    tracingService.Trace("DataDictionaryPlugin: SolutionNames parameter not found in InputParameters.");
+                }
 
-                var solutionNames = context.InputParameters.Contains("SolutionNames")
-                    ? context.InputParameters["SolutionNames"] as string[]
-                    : null;
-                if (solutionNames == null || solutionNames.Length == 0 || solutionNames.All(string.IsNullOrWhiteSpace))
-                    throw new InvalidPluginExecutionException("SolutionNames parameter is required and must be a non-empty array.");
+                if (solutionNames == null || solutionNames.Length == 0)
+                {
+                    tracingService.Trace("DataDictionaryPlugin: No solution names provided. Exiting execution.");
+                    return;
+                }
 
-                tracingService.Trace($"SolutionNames: {string.Join(", ", solutionNames)}");
+                tracingService.Trace($"DataDictionaryPlugin: SolutionNames: {string.Join(", ", solutionNames)}");
 
                 var allEntityMetadatas = new List<EntityMetadata>();
                 var allFieldMetadatas = new List<FieldMetadata>();
@@ -48,11 +74,12 @@ namespace DataDictionary
 
                 foreach (var solutionName in solutionNames.Where(n => !string.IsNullOrWhiteSpace(n)))
                 {
-                    var currentSolutionId = GetSolutionId(service, solutionName, tracingService); // Renamed variable to avoid conflict
-                    tracingService.Trace($"SolutionId for '{solutionName}': {currentSolutionId}");
+                    tracingService.Trace($"DataDictionaryPlugin: Processing solution '{solutionName}'.");
+                    var currentSolutionId = GetSolutionId(service, solutionName, tracingService);
+                    tracingService.Trace($"DataDictionaryPlugin: SolutionId for '{solutionName}': {currentSolutionId}");
 
                     var entityMetadatas = GetEntitiesInSolution(service, currentSolutionId, tracingService);
-                    tracingService.Trace($"Entities found in '{solutionName}': {entityMetadatas.Count}");
+                    tracingService.Trace($"DataDictionaryPlugin: Entities found in '{solutionName}': {entityMetadatas.Count}");
 
                     foreach (var entity in entityMetadatas)
                     {
@@ -61,16 +88,33 @@ namespace DataDictionary
                     }
 
                     var fieldMetadatas = GetFieldsInSolution(service, currentSolutionId, entityMetadatas, tracingService);
-                    tracingService.Trace($"Fields found in '{solutionName}': {fieldMetadatas.Count}");
+                    tracingService.Trace($"DataDictionaryPlugin: Fields found in '{solutionName}': {fieldMetadatas.Count}");
 
+                    // After collecting fieldMetadatas in each solution, add the solution name to each field:
                     foreach (var field in fieldMetadatas)
                     {
-                        if (!allFieldMetadatas.Any(f => f.EntityName == field.EntityName && f.SchemaName == field.SchemaName))
+                        if (field.SolutionNames == null)
+                            field.SolutionNames = new List<string>();
+                        if (!field.SolutionNames.Contains(solutionName))
+                            field.SolutionNames.Add(solutionName);
+
+                        // Merge with allFieldMetadatas if already present
+                        var existing = allFieldMetadatas
+                            .FirstOrDefault(f => f.EntityName == field.EntityName && f.SchemaName == field.SchemaName);
+                        if (existing != null)
+                        {
+                            foreach (var sol in field.SolutionNames)
+                                if (!existing.SolutionNames.Contains(sol))
+                                    existing.SolutionNames.Add(sol);
+                        }
+                        else
+                        {
                             allFieldMetadatas.Add(field);
+                        }
                     }
 
                     var webResources = GetWebResourcesInSolution(service, currentSolutionId, tracingService);
-                    tracingService.Trace($"Web resources found in '{solutionName}': {webResources.Count}");
+                    tracingService.Trace($"DataDictionaryPlugin: Web resources found in '{solutionName}': {webResources.Count}");
 
                     foreach (var wr in webResources)
                     {
@@ -79,275 +123,397 @@ namespace DataDictionary
                     }
                 }
 
+                tracingService.Trace($"DataDictionaryPlugin: Total unique entities: {allEntityMetadatas.Count}");
+                tracingService.Trace($"DataDictionaryPlugin: Total unique fields: {allFieldMetadatas.Count}");
+                tracingService.Trace($"DataDictionaryPlugin: Total unique web resources: {allWebResources.Count}");
+
                 foreach (var entity in allEntityMetadatas)
                 {
+                    tracingService.Trace($"DataDictionaryPlugin: Inspecting forms for entity: {entity.LogicalName}");
+
+                    // Get all form field locations for this entity
                     var allLocations = FormFieldInspector.GetAllFieldsWithVisibility(service, entity.LogicalName)
-                        .Cast<FormFieldInspector.FieldFormLocation>(); // Explicitly cast objects to FieldFormLocation
+                        .Cast<FieldFormLocation>()
+                        .ToList();
+
+                    // Group locations by field name for efficient lookup
+                    var locationsByField = allLocations
+                        .GroupBy(loc => loc.FieldName)
+                        .ToDictionary(g => g.Key, g => g.ToList());
 
                     foreach (var field in allFieldMetadatas.Where(f => f.EntityName == entity.LogicalName))
                     {
-                        field.FormLocations = allLocations
-                            .Where(loc => loc.FieldName == field.SchemaName) // FieldName is now accessible after casting
-                            .Select(loc => new FieldFormLocation
-                            {
-                                FormName = loc.FormName,
-                                TabName = loc.TabName,
-                                TabVisible = loc.TabVisible,
-                                SectionName = loc.SectionName,
-                                SectionVisible = loc.SectionVisible,
-                                FieldVisible = loc.FieldVisible,
-                                FieldName = loc.FieldName,
-                                FieldDescription = loc.FieldDescription
-                            })
-                            .ToList();
+                        // Find all locations for this field on all forms
+                        if (locationsByField.TryGetValue(field.SchemaName, out var fieldLocations))
+                        {
+                            // Ensure all associated forms are listed
+                            field.FormLocations = fieldLocations
+                                .Select(loc => new FieldFormLocation
+                                {
+                                    FormName = loc.FormName,
+                                    TabName = loc.TabName,
+                                    TabVisible = loc.TabVisible,
+                                    SectionName = loc.SectionName,
+                                    SectionVisible = loc.SectionVisible,
+                                    FieldVisible = loc.FieldVisible,
+                                    FieldName = loc.FieldName,
+                                    FieldDescription = loc.FieldDescription,
+                                    RequiredLevel = field.RequiredLevel,
+                                    Permissions = field.Permissions,
+                                    CanRead = loc.CanRead,
+                                    CanWrite = loc.CanWrite,
+                                    CanCreate = loc.CanCreate
+                                })
+                                .ToList();
+                        }
+                        else
+                        {
+                            field.FormLocations = new List<FieldFormLocation>();
+                        }
+
+                        if (!field.FormLocations.Any())
+                        {
+                            tracingService.Trace($"No form locations found for field {field.SchemaName} on entity {entity.LogicalName}");
+                        }
+                        else
+                        {
+                            tracingService.Trace($"Form locations for field {field.SchemaName} on entity {entity.LogicalName}: {string.Join(";", field.FormLocations.Select(f => f.FormName))}");
+                        }
                     }
                 }
 
+                tracingService.Trace("DataDictionaryPlugin: Analyzing scripts.");
                 var scriptReferences = AnalyzeScripts(allFieldMetadatas, allWebResources, tracingService);
+                tracingService.Trace($"DataDictionaryPlugin: Script analysis complete. ScriptReferences count: {scriptReferences.Count}");
 
-                var docBytes = GenerateJsonDocument(allFieldMetadatas, scriptReferences);
+                tracingService.Trace("DataDictionaryPlugin: Generating JSON document.");
+                var docBytes = GenerateJsonDocument(allFieldMetadatas, scriptReferences, solutionNames.ToList());
+                tracingService.Trace($"DataDictionaryPlugin: JSON document generated. Size: {docBytes?.Length ?? 0} bytes.");
+
+                tracingService.Trace("DataDictionaryPlugin: Generating CSV document.");
                 var csvBytes = GenerateCsvDocument(allFieldMetadatas, scriptReferences);
+                tracingService.Trace($"DataDictionaryPlugin: CSV document generated. Size: {csvBytes?.Length ?? 0} bytes.");
 
+                tracingService.Trace("DataDictionaryPlugin: Storing JSON document as Note.");
                 var noteId = StoreDocumentAsNote(service, docBytes, "DataDictionary.json", "Data Dictionary generated by plug-in.", tracingService);
+                tracingService.Trace($"DataDictionaryPlugin: JSON NoteId: {noteId}");
+
+                tracingService.Trace("DataDictionaryPlugin: Storing CSV document as Note.");
                 var csvNoteId = StoreDocumentAsNote(service, csvBytes, "DataDictionary.csv", "Data Dictionary CSV generated by plug-in.", tracingService);
+                tracingService.Trace($"DataDictionaryPlugin: CSV NoteId: {csvNoteId}");
 
                 context.OutputParameters["NoteId"] = noteId;
                 context.OutputParameters["CsvNoteId"] = csvNoteId;
 
-                tracingService.Trace("DataDictionaryPlugin execution completed successfully.");
+                tracingService.Trace("DataDictionaryPlugin: Execution completed successfully.");
             }
             catch (Exception ex)
             {
-                tracingService?.Trace($"Exception: {ex}");
+                tracingService?.Trace($"DataDictionaryPlugin: Exception: {ex}");
                 throw new InvalidPluginExecutionException("An error occurred in DataDictionaryPlugin: " + ex.Message, ex);
             }
         }
 
         private Guid GetSolutionId(IOrganizationService service, string solutionName, ITracingService tracingService)
         {
-            try
-            {
-                var query = new QueryExpression("solution")
-                {
-                    ColumnSet = new ColumnSet("solutionid"),
-                    Criteria = { Conditions = { new ConditionExpression("uniquename", ConditionOperator.Equal, solutionName) } }
-                };
-                var result = service.RetrieveMultiple(query).Entities.FirstOrDefault();
-                if (result == null)
-                    throw new InvalidPluginExecutionException($"Solution '{solutionName}' not found.");
-                return result.Id;
-            }
-            catch (Exception ex)
-            {
-                tracingService.Trace($"GetSolutionId failed: {ex}");
-                throw;
-            }
-        }
-        private byte[] GenerateJsonDocument(List<FieldMetadata> fieldMetadatas, Dictionary<string, List<string>> scriptReferences)
-        {
-            try
-            {
-                var dataDictionary = new
-                {
-                    Fields = fieldMetadatas.Select(f => new
-                    {
-                        f.EntityName,
-                        f.SchemaName,
-                        f.DisplayName,
-                        f.Type,
-                        f.RequiredLevel,
-                        f.Description,
-                        f.MaxLength,
-                        f.Precision,
-                        f.MinValue,
-                        f.MaxValue,
-                        FormLocations = f.FormLocations?.Select(fl => new
-                        {
-                            fl.FormName,
-                            fl.TabName,
-                            fl.TabVisible,
-                            fl.SectionName,
-                            fl.SectionVisible,
-                            fl.FieldVisible,
-                            fl.FieldName
-                        }),
-                        f.ScriptReferences,
-                        f.HiddenByScript
-                    }),
-                    ScriptReferences = scriptReferences
-                };
+            tracingService.Trace($"Retrieving SolutionId for solution: {solutionName}");
 
-                using (var memoryStream = new MemoryStream())
-                {
-                    var serializer = new DataContractJsonSerializer(dataDictionary.GetType());
-                    serializer.WriteObject(memoryStream, dataDictionary);
-                    return memoryStream.ToArray();
-                }
-            }
-            catch (Exception ex)
+            var query = new QueryExpression("solution")
             {
-                throw new InvalidPluginExecutionException("Error generating JSON document: " + ex.Message, ex);
+                ColumnSet = new ColumnSet("solutionid"),
+                Criteria = new FilterExpression
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("uniquename", ConditionOperator.Equal, solutionName)
+                    }
+                }
+            };
+
+            var solutions = service.RetrieveMultiple(query);
+
+            if (solutions.Entities.Count == 0)
+            {
+                throw new InvalidPluginExecutionException($"Solution '{solutionName}' not found.");
             }
+
+            return solutions.Entities[0].Id;
         }
+
         private List<EntityMetadata> GetEntitiesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
         {
-            try
+            tracingService.Trace($"Retrieving entities for solutionId: {solutionId}");
+
+            var query = new QueryExpression("solutioncomponent")
             {
-                tracingService.Trace($"Retrieving entities for solution ID: {solutionId}");
-
-                var request = new RetrieveEntityRequest
+                ColumnSet = new ColumnSet("objectid"),
+                Criteria = new FilterExpression
                 {
-                    EntityFilters = EntityFilters.Entity,
-                    LogicalName = "solutioncomponent",
-                    ColumnSet = new ColumnSet("objectid", "componenttype")
-                };
-
-                var query = new QueryExpression("solutioncomponent")
-                {
-                    ColumnSet = new ColumnSet("objectid", "componenttype"),
-                    Criteria = new FilterExpression
+                    Conditions =
                     {
-                        Conditions =
-                        {
-                            new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId),
-                            new ConditionExpression("componenttype", ConditionOperator.Equal, 1) // Entity type
-                        }
+                        new ConditionExpression("componenttype", ConditionOperator.Equal, 1), // 1 represents Entity
+                        new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId)
                     }
+                }
+            };
+
+            var solutionComponents = service.RetrieveMultiple(query);
+
+            var entityMetadatas = new List<EntityMetadata>();
+            foreach (var component in solutionComponents.Entities)
+            {
+                var entityId = component.GetAttributeValue<Guid>("objectid");
+                // Use MetadataId instead of LogicalName
+                var retrieveEntityRequest = new RetrieveEntityRequest
+                {
+                    EntityFilters = EntityFilters.Attributes,
+                    MetadataId = entityId
                 };
 
-                var solutionComponents = service.RetrieveMultiple(query).Entities;
-
-                var entityMetadataList = new List<EntityMetadata>();
-                foreach (var component in solutionComponents)
-                {
-                    var entityId = component.GetAttributeValue<Guid>("objectid");
-                    var entityMetadataRequest = new RetrieveEntityRequest
-                    {
-                        EntityFilters = EntityFilters.All,
-                        MetadataId = entityId
-                    };
-
-                    var response = (RetrieveEntityResponse)service.Execute(entityMetadataRequest);
-                    entityMetadataList.Add(response.EntityMetadata);
-                }
-
-                tracingService.Trace($"Retrieved {entityMetadataList.Count} entities for solution ID: {solutionId}");
-                return entityMetadataList;
+                var retrieveEntityResponse = (RetrieveEntityResponse)service.Execute(retrieveEntityRequest);
+                entityMetadatas.Add(retrieveEntityResponse.EntityMetadata);
             }
-            catch (Exception ex)
-            {
-                tracingService.Trace($"GetEntitiesInSolution failed: {ex}");
-                throw;
-            }
+
+            return entityMetadatas;
         }
+
         private List<FieldMetadata> GetFieldsInSolution(IOrganizationService service, Guid solutionId, List<EntityMetadata> entityMetadatas, ITracingService tracingService)
         {
-            try
+            tracingService.Trace($"Retrieving fields for solutionId: {solutionId}");
+
+            var fieldMetadatas = new List<FieldMetadata>();
+
+            foreach (var entityMetadata in entityMetadatas)
             {
-                tracingService.Trace($"Retrieving fields for solution ID: {solutionId}");
+                tracingService.Trace($"Retrieving fields for entity: {entityMetadata.LogicalName}");
 
-                var fieldMetadataList = new List<FieldMetadata>();
-
-                foreach (var entityMetadata in entityMetadatas)
+                var retrieveEntityRequest = new RetrieveEntityRequest
                 {
-                    tracingService.Trace($"Retrieving fields for entity: {entityMetadata.LogicalName}");
-
-                    foreach (var attribute in entityMetadata.Attributes)
-                    {
-                        var fieldMetadata = new FieldMetadata
-                        {
-                            EntityName = entityMetadata.LogicalName,
-                            SchemaName = attribute.LogicalName,
-                            DisplayName = attribute.DisplayName?.UserLocalizedLabel?.Label,
-                            Type = attribute.AttributeTypeName?.Value,
-                            RequiredLevel = attribute.RequiredLevel?.Value.ToString(),
-                            Description = attribute.Description?.UserLocalizedLabel?.Label,
-                            MaxLength = attribute.MaxLength,
-                            Precision = attribute.Precision,
-                            MinValue = attribute.MinValue,
-                            MaxValue = attribute.MaxValue
-                        };
-
-                        fieldMetadataList.Add(fieldMetadata);
-                    }
-                }
-
-                tracingService.Trace($"Retrieved {fieldMetadataList.Count} fields for solution ID: {solutionId}");
-                return fieldMetadataList;
-            }
-            catch (Exception ex)
-            {
-                tracingService.Trace($"GetFieldsInSolution failed: {ex}");
-                throw;
-            }
-        }
-        private List<WebResourceInfo> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
-        {
-            try
-            {
-                tracingService.Trace($"Retrieving web resources for solution ID: {solutionId}");
-
-                var query = new QueryExpression("solutioncomponent")
-                {
-                    ColumnSet = new ColumnSet("objectid", "componenttype"),
-                    Criteria = new FilterExpression
-                    {
-                        Conditions =
-                        {
-                            new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId),
-                            new ConditionExpression("componenttype", ConditionOperator.Equal, 61) // Web resource type
-                        }
-                    }
+                    EntityFilters = EntityFilters.Attributes,
+                    LogicalName = entityMetadata.LogicalName
                 };
 
-                var solutionComponents = service.RetrieveMultiple(query).Entities;
+                var retrieveEntityResponse = (RetrieveEntityResponse)service.Execute(retrieveEntityRequest);
 
-                var webResourceList = new List<WebResourceInfo>();
-                foreach (var component in solutionComponents)
+                foreach (var attribute in retrieveEntityResponse.EntityMetadata.Attributes)
                 {
-                    var webResourceId = component.GetAttributeValue<Guid>("objectid");
-                    var webResource = service.Retrieve("webresource", webResourceId, new ColumnSet("name", "displayname", "content"));
-
-                    webResourceList.Add(new WebResourceInfo
+                    var fieldMetadata = new FieldMetadata
                     {
-                        Id = webResourceId,
+                        EntityName = entityMetadata.LogicalName,
+                        SchemaName = attribute.SchemaName,
+                        DisplayName = attribute.DisplayName?.UserLocalizedLabel?.Label,
+                        Description = attribute.Description?.UserLocalizedLabel?.Label,
+                        Type = attribute.AttributeTypeName?.Value // <-- Add this line
+                    };
+
+                    fieldMetadatas.Add(fieldMetadata);
+                }
+            }
+
+            return fieldMetadatas;
+        }
+
+        private List<WebResourceInfo> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
+        {
+            tracingService.Trace($"Retrieving web resources for solutionId: {solutionId}");
+
+            var query = new QueryExpression("solutioncomponent")
+            {
+                ColumnSet = new ColumnSet("objectid"),
+                Criteria = new FilterExpression
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("componenttype", ConditionOperator.Equal, 61), // 61 represents Web Resource
+                        new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId)
+                    }
+                }
+            };
+
+            var solutionComponents = service.RetrieveMultiple(query);
+
+            var webResources = new List<WebResourceInfo>();
+            foreach (var component in solutionComponents.Entities)
+            {
+                var webResourceId = component.GetAttributeValue<Guid>("objectid");
+                try
+                {
+                    var webResource = service.Retrieve("webresource", webResourceId, new ColumnSet("name", "displayname"));
+                    webResources.Add(new WebResourceInfo
+                    {
+                        Path = webResourceId.ToString(),
                         Name = webResource.GetAttributeValue<string>("name"),
-                        DisplayName = webResource.GetAttributeValue<string>("displayname"),
-                        Content = webResource.GetAttributeValue<string>("content")
+                        DisplayName = webResource.GetAttributeValue<string>("displayname")
                     });
                 }
-
-                tracingService.Trace($"Retrieved {webResourceList.Count} web resources for solution ID: {solutionId}");
-                return webResourceList;
+                catch (Exception ex)
+                {
+                    tracingService.Trace($"Web resource with Id {webResourceId} could not be retrieved: {ex.Message}");
+                    // Continue processing other web resources
+                }
             }
-            catch (Exception ex)
+
+            return webResources;
+        }
+
+        private List<string> AnalyzeScripts(List<FieldMetadata> fieldMetadatas, List<WebResourceInfo> webResources, ITracingService tracingService)
+        {
+            tracingService.Trace("Analyzing scripts for field metadata and web resources.");
+
+            var scriptReferences = new List<string>();
+
+            foreach (var field in fieldMetadatas)
             {
-                tracingService.Trace($"GetWebResourcesInSolution failed: {ex}");
-                throw;
+                if (field.ScriptReferences == null)
+                {
+                    field.ScriptReferences = new List<string>();
+                }
+
+                foreach (var webResource in webResources)
+                {
+                    if (webResource.Name.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (field.SchemaName != null && webResource.Name.IndexOf(field.SchemaName, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            field.ScriptReferences.Add(webResource.Name);
+                            scriptReferences.Add(webResource.Name);
+                        }
+                    }
+                }
+
+                field.HiddenByScript = field.ScriptReferences.Any();
+            }
+
+            tracingService.Trace($"Script analysis completed. Total script references found: {scriptReferences.Count}");
+            return scriptReferences;
+        }
+
+        private byte[] GenerateJsonDocument(List<FieldMetadata> fieldMetadatas, List<string> scriptReferences, List<string> solutionNames)
+        {
+            using (var memoryStream = new MemoryStream())
+            {
+                var serializer = new DataContractJsonSerializer(typeof(DataDictionaryRoot));
+                var document = new DataDictionaryRoot
+                {
+                    DataDictionary = new DataDictionaryDocument
+                    {
+                        Fields = fieldMetadatas,
+                        ScriptReferences = scriptReferences,
+                        SolutionNames = solutionNames
+                    }
+                };
+                serializer.WriteObject(memoryStream, document);
+                return memoryStream.ToArray();
             }
         }
+
+        private byte[] GenerateCsvDocument(List<FieldMetadata> fieldMetadatas, List<string> scriptReferences)
+        {
+            using (var memoryStream = new MemoryStream())
+            using (var writer = new StreamWriter(memoryStream))
+            {
+                // Add FormNames and SolutionNames to the header
+                writer.WriteLine("EntityName,SchemaName,DisplayName,Type,RequiredLevel,Description,MaxLength,Precision,MinValue,MaxValue,HiddenByScript,ScriptReferences,FormNames,SolutionNames");
+
+                foreach (var field in fieldMetadatas)
+                {
+                    var scriptRefs = field.ScriptReferences != null ? string.Join(";", field.ScriptReferences) : string.Empty;
+                    var formNames = field.FormLocations != null && field.FormLocations.Any()
+                        ? string.Join(";", field.FormLocations.Select(f => f.FormName).Distinct())
+                        : string.Empty;
+                    var solutionNames = field.SolutionNames != null && field.SolutionNames.Any()
+                        ? string.Join(";", field.SolutionNames.Distinct())
+                        : string.Empty;
+
+                    writer.WriteLine($"{field.EntityName},{field.SchemaName},{field.DisplayName},{field.Type},{field.RequiredLevel},{field.Description},{field.MaxLength},{field.Precision},{field.MinValue},{field.MaxValue},{field.HiddenByScript},{scriptRefs},{formNames},{solutionNames}");
+                }
+
+                writer.Flush();
+                return memoryStream.ToArray();
+            }
+        }
+
+        private Guid StoreDocumentAsNote(IOrganizationService service, byte[] documentBytes, string fileName, string description, ITracingService tracingService)
+        {
+            tracingService.Trace($"Storing document as Note. FileName: {fileName}, Description: {description}");
+
+            var note = new Entity("annotation")
+            {
+                ["subject"] = fileName,
+                ["notetext"] = description,
+                ["documentbody"] = Convert.ToBase64String(documentBytes),
+                ["filename"] = fileName,
+                ["mimetype"] = "application/octet-stream"
+            };
+
+            var noteId = service.Create(note);
+            tracingService.Trace($"Note created with ID: {noteId}");
+            return noteId;
+        }
+
+        public string GenerateJsonDocument(object data)
+        {
+            var settings = new Newtonsoft.Json.JsonSerializerSettings
+            {
+                NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore, // Ignore nulls
+                Formatting = Newtonsoft.Json.Formatting.Indented, // Pretty print
+                ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver() // camelCase
+            };
+            // Wrap the data in the DataDictionary parent
+            var root = new { DataDictionary = data };
+            return Newtonsoft.Json.JsonConvert.SerializeObject(root, settings);
+        }
+        // Other methods remain unchanged...
     }
 
-    /// <summary>
-    /// Helper class for extracting field, tab, and section visibility from form XML.
-    /// </summary>
-    public static class FormFieldInspector
+    public class DataDictionaryRoot
     {
-        internal static IEnumerable<object> GetAllFieldsWithVisibility(IOrganizationService service, string logicalName)
-        {
-            throw new NotImplementedException();
-        }
+        public DataDictionaryDocument DataDictionary { get; set; }
+    }
 
-        public class FieldFormLocation
-        {
-            public string FormName { get; set; }
-            public string TabName { get; set; }
-            public bool TabVisible { get; set; }
-            public string SectionName { get; set; }
-            public bool SectionVisible { get; set; }
-            public bool FieldVisible { get; set; }
-            public string FieldName { get; set; } // Added this property to fix CS0117
-            public string FieldDescription { get; set; }
-        }
+    public class DataDictionaryDocument
+    {
+        public List<FieldMetadata> Fields { get; set; }
+        public List<string> ScriptReferences { get; set; }
+        public List<string> SolutionNames { get; set; } // Add this property
+    }
+
+    public class FieldFormLocation
+    {
+        public string FormName { get; set; }
+        public string TabName { get; set; }
+        public bool TabVisible { get; set; }
+        public string SectionName { get; set; }
+        public bool SectionVisible { get; set; }
+        public bool FieldVisible { get; set; }
+        public string FieldName { get; set; }
+        public string FieldDescription { get; set; }
+        public bool CanRead { get; set; }
+        public bool CanWrite { get; set; }
+        public bool CanCreate { get; set; }
+        public string RequiredLevel { get; set; }
+        public string Permissions { get; set; }
+    }
+
+    public class FieldMetadata
+    {
+        public string EntityName { get; set; }
+        public string SchemaName { get; set; }
+        public string DisplayName { get; set; }
+        public string Description { get; set; }
+        public string Type { get; set; }
+        public string RequiredLevel { get; set; }
+        public int? MaxLength { get; set; }
+        public int? Precision { get; set; }
+        public int? MinValue { get; set; }
+        public int? MaxValue { get; set; }
+        public List<FieldFormLocation> FormLocations { get; set; }
+        public List<string> ScriptReferences { get; set; }
+        public bool HiddenByScript { get; set; }
+        public bool CanRead { get; set; }
+        public bool CanWrite { get; set; }
+        public bool CanCreate { get; set; }
+        public string Permissions { get; set; }
+        public List<string> SolutionNames { get; set; }
     }
 }
