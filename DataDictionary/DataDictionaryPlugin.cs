@@ -577,8 +577,8 @@ namespace DataDictionary
             {
                 helper.UpsertFieldRecord(field,entityRecords);
                 foreach (var formloc in field.FormLocations)
-                { 
-                    helper.UpsertFieldFormLocation(formloc,formloc.FieldName,formloc.FormName)
+                {
+                    helper.UpsertFieldFormLocation(formloc, formloc.FieldName, formloc.FormName);
 
                 }
             }

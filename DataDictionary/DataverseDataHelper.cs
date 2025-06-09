@@ -8,18 +8,31 @@ namespace DataDictionary
 {
     /// <summary>
     /// Helper class for inserting and updating Data Dictionary data into Dataverse tables.
+    /// Provides methods to upsert entity, field, web resource, script reference, and form location records.
     /// </summary>
     public class DataverseDataHelper
     {
         private readonly IOrganizationService _service;
         private readonly ITracingService _tracing;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DataverseDataHelper"/> class.
+        /// </summary>
+        /// <param name="service">The organization service used to interact with Dataverse.</param>
+        /// <param name="tracing">The tracing service for logging operations.</param>
         public DataverseDataHelper(IOrganizationService service, ITracingService tracing)
         {
             _service = service;
             _tracing = tracing;
         }
 
+        /// <summary>
+        /// Inserts or updates an entity record in the custom table.
+        /// </summary>
+        /// <param name="logicalName">The logical name of the entity.</param>
+        /// <param name="displayName">The display name of the entity.</param>
+        /// <param name="description">The description of the entity.</param>
+        /// <returns>The upserted entity.</returns>
         public Entity UpsertEntityRecord(string logicalName, string displayName, string description)
         {
             var entity = new Entity("ljr_table");
@@ -52,6 +65,11 @@ namespace DataDictionary
             return (entity);
         }
 
+        /// <summary>
+        /// Inserts or updates a field record in the custom table.
+        /// </summary>
+        /// <param name="field">The field metadata to upsert.</param>
+        /// <param name="entityRecords">A dictionary of entity records for reference.</param>
         public void UpsertFieldRecord(FieldMetadata field, Dictionary<string, string[]> entityRecords)
         {
             try
@@ -113,6 +131,10 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Inserts or updates a web resource record in the custom table.
+        /// </summary>
+        /// <param name="wr">The web resource information to upsert.</param>
         public void UpsertWebResourceRecord(WebResourceInfo wr)
         {
             var entity = new Entity("ljr_webresource");
@@ -145,6 +167,10 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Inserts or updates a script reference record in the custom table.
+        /// </summary>
+        /// <param name="scriptName">The name of the script reference.</param>
         public void UpsertScriptReference(string scriptName)
         {
             var entity = new Entity("ljr_webresource");
@@ -175,6 +201,11 @@ namespace DataDictionary
             }
         }
 
+        /// <summary>
+        /// Retrieves all forms associated with a given solution.
+        /// </summary>
+        /// <param name="solutionId">The unique identifier of the solution.</param>
+        /// <returns>A list of form entities associated with the solution.</returns>
         public List<Entity> GetFormsForSolution(Guid solutionId)
         {
             // 60 = System Form (main forms, quick view, quick create, etc.)
@@ -205,6 +236,12 @@ namespace DataDictionary
             return forms;
         }
 
+        /// <summary>
+        /// Inserts or updates a field form location record in the custom table.
+        /// </summary>
+        /// <param name="location">The form location information to upsert.</param>
+        /// <param name="fieldName">The name of the field.</param>
+        /// <param name="formId">The identifier of the form.</param>
         public void UpsertFieldFormLocation(FieldFormLocation location, string fieldName, string formId)
         {
             try
