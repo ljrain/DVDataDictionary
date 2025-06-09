@@ -57,7 +57,7 @@ namespace DataDictionary
             try
             {
                 var entity = new Entity("ljr_column");
-                //entity["ljr_table"] = entityRecords[field.EntityName][0];
+                //entity["ljr_table"] = field.
                 entity["ljr_name"] = field.EntityName.ToLower() + "." + field.SchemaName.ToLower();
                 entity["ljr_schemaname"] = field.SchemaName;
                 entity["ljr_displayname"] = field.DisplayName;
@@ -68,10 +68,11 @@ namespace DataDictionary
                 entity["ljr_precision"] = field.Precision;
                 entity["ljr_minvalue"] = field.MinValue;
                 entity["ljr_maxvalue"] = field.MaxValue;
-                //entity["ljr_hiddenbyscript"] = field.HiddenByScript;
-                //entity["ljr_permissions"] = field.Permissions;
-                //entity["ljr_solutionnames"] = field.SolutionNames != null ? string.Join(";", field.SolutionNames) : null;
-                //entity["ljr_scriptreferences"] = field.ScriptReferences != null ? string.Join(";", field.ScriptReferences) : null;
+                entity["ljr_hiddenbyscript"] = field.HiddenByScript;
+                entity["ljr_permissions"] = field.Permissions;
+                entity["ljr_solutionname"] = field.SolutionNames != null ? string.Join(";", field.SolutionNames) : null;
+                entity["ljr_scriptreferences"] = field.ScriptReferences != null ? string.Join(";", field.ScriptReferences) : null;
+                _tracing.Trace(field.ToString());
 
                 var query = new QueryExpression("ljr_column")
                 {
@@ -104,51 +105,51 @@ namespace DataDictionary
             }
         }
 
-        //public void UpsertWebResourceRecord(WebResourceInfo wr)
-        //{
-        //    var entity = new Entity("new_datadictionarywebresource");
-        //    entity["new_name"] = wr.Name;
-        //    entity["new_displayname"] = wr.DisplayName;
-        //    entity["new_path"] = wr.Path;
-
-        //    var query = new QueryExpression("new_datadictionarywebresource")
-        //    {
-        //        ColumnSet = new ColumnSet("new_datadictionarywebresourceid"),
-        //        Criteria = new FilterExpression
-        //        {
-        //            Conditions =
-        //            {
-        //                new ConditionExpression("new_name", ConditionOperator.Equal, wr.Name)
-        //            }
-        //        }
-        //    };
-        //    var results = _service.RetrieveMultiple(query);
-        //    if (results.Entities.Count > 0)
-        //    {
-        //        entity.Id = results.Entities[0].Id;
-        //        _service.Update(entity);
-        //        _tracing.Trace($"Updated web resource record for {wr.Name}");
-        //    }
-        //    else
-        //    {
-        //        _service.Create(entity);
-        //        _tracing.Trace($"Created web resource record for {wr.Name}");
-        //    }
-        //}
-
-        public void UpsertScriptReference(string scriptName)
+        public void UpsertWebResourceRecord(WebResourceInfo wr)
         {
-            var entity = new Entity("new_datadictionaryscriptreference");
-            entity["new_name"] = scriptName;
+            var entity = new Entity("ljr_webresource");
+            entity["ljr_name"] = wr.Name;
+            entity["ljr_displayname"] = wr.DisplayName;
+            entity["ljr_path"] = wr.Path;
 
-            var query = new QueryExpression("new_datadictionaryscriptreference")
+            var query = new QueryExpression("ljr_webresource")
             {
-                ColumnSet = new ColumnSet("new_datadictionaryscriptreferenceid"),
+                ColumnSet = new ColumnSet("ljr_webresourceid"),
                 Criteria = new FilterExpression
                 {
                     Conditions =
                     {
-                        new ConditionExpression("new_name", ConditionOperator.Equal, scriptName)
+                        new ConditionExpression("ljr_name", ConditionOperator.Equal, wr.Name)
+                    }
+                }
+            };
+            var results = _service.RetrieveMultiple(query);
+            if (results.Entities.Count > 0)
+            {
+                entity.Id = results.Entities[0].Id;
+                _service.Update(entity);
+                _tracing.Trace($"Updated web resource record for {wr.Name}");
+            }
+            else
+            {
+                _service.Create(entity);
+                _tracing.Trace($"Created web resource record for {wr.Name}");
+            }
+        }
+
+        public void UpsertScriptReference(string scriptName)
+        {
+            var entity = new Entity("ljr_webresource");
+            entity["ljr_name"] = scriptName;
+
+            var query = new QueryExpression("ljr_webresource")
+            {
+                ColumnSet = new ColumnSet("ljr_webresourceid"),
+                Criteria = new FilterExpression
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("ljr_name", ConditionOperator.Equal, scriptName)
                     }
                 }
             };
@@ -165,5 +166,16 @@ namespace DataDictionary
                 _tracing.Trace($"Created script reference record for {scriptName}");
             }
         }
+    }
+    // Add the definition or reference for the missing 'WebResourceInfo' type.
+    // Since the type 'WebResourceInfo' is not defined in the provided context, you need to either:
+    // 1. Define the 'WebResourceInfo' class if it is part of your application.
+    // 2. Add the appropriate using directive or assembly reference if it is part of an external library.
+
+    public class WebResourceInfo
+    {
+        public string Name { get; set; }
+        public string DisplayName { get; set; }
+        public string Path { get; set; }
     }
 }

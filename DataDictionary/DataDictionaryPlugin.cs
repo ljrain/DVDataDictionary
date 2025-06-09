@@ -118,8 +118,12 @@ namespace DataDictionary
 
                     foreach (var wr in webResources)
                     {
-                        if (!allWebResources.Any(w => w.Name == wr.Name))
-                            allWebResources.Add(wr);
+                        allWebResources.Add(new WebResourceInfo
+                        {
+                            Name = wr.Name,
+                            DisplayName = wr.DisplayName,
+                            Path = wr.Path
+                        });
                     }
                 }
 
@@ -399,7 +403,7 @@ namespace DataDictionary
 
         // Update the `GetWebResourcesInSolution` method to ensure the returned `WebResourceInfo` matches the expected type.
 
-        private List<WebResourceInfo> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
+        private List<WebResourceInfoNew> GetWebResourcesInSolution(IOrganizationService service, Guid solutionId, ITracingService tracingService)
         {
             tracingService.Trace($"Retrieving web resources for solutionId: {solutionId}");
 
@@ -418,14 +422,14 @@ namespace DataDictionary
 
             var solutionComponents = service.RetrieveMultiple(query);
 
-            var webResources = new List<WebResourceInfo>();
+            var webResources = new List<WebResourceInfoNew>();
             foreach (var component in solutionComponents.Entities)
             {
                 var webResourceId = component.GetAttributeValue<Guid>("objectid");
                 try
                 {
                     var webResource = service.Retrieve("webresource", webResourceId, new ColumnSet("name", "displayname", "webresourcetype"));
-                    webResources.Add(new WebResourceInfo
+                    webResources.Add(new WebResourceInfoNew
                     {
                         Path = webResourceId.ToString(),
                         Name = webResource.GetAttributeValue<string>("name"),
@@ -571,11 +575,11 @@ namespace DataDictionary
                 helper.UpsertFieldRecord(field,entityRecords);
             }
 
-            //// Store Web Resources
-            //foreach (var wr in allWebResources)
-            //{
-            //    helper.UpsertWebResourceRecord(wr);
-            //}
+            // Store Web Resources
+            foreach (var wr in allWebResources)
+            {
+                helper.UpsertWebResourceRecord(wr);
+            }
 
             //// Store Script References
             //foreach (var script in scriptReferences.Distinct())
@@ -650,5 +654,52 @@ namespace DataDictionary
         public bool CanCreate { get; set; }
         public string Permissions { get; set; }
         public List<string> SolutionNames { get; set; }
+
+        public override string ToString()
+        {
+            var formLocations = FormLocations != null && FormLocations.Count > 0
+                ? string.Join(" | ", FormLocations.Select(f =>
+                    $"FormName: {f.FormName}, TabName: {f.TabName}, TabVisible: {f.TabVisible}, SectionName: {f.SectionName}, SectionVisible: {f.SectionVisible}, FieldVisible: {f.FieldVisible}, FieldName: {f.FieldName}, FieldDescription: {f.FieldDescription}, RequiredLevel: {f.RequiredLevel}, Permissions: {f.Permissions}, CanRead: {f.CanRead}, CanWrite: {f.CanWrite}, CanCreate: {f.CanCreate}"))
+                : "None";
+
+            var scriptRefs = ScriptReferences != null && ScriptReferences.Count > 0
+                ? string.Join(";", ScriptReferences)
+                : "None";
+
+            var solutionNames = SolutionNames != null && SolutionNames.Count > 0
+                ? string.Join(";", SolutionNames)
+                : "None";
+
+            return $"EntityName: {EntityName}, " +
+                   $"SchemaName: {SchemaName}, " +
+                   $"DisplayName: {DisplayName}, " +
+                   $"Description: {Description}, " +
+                   $"Type: {Type}, " +
+                   $"RequiredLevel: {RequiredLevel}, " +
+                   $"MaxLength: {MaxLength}, " +
+                   $"Precision: {Precision}, " +
+                   $"MinValue: {MinValue}, " +
+                   $"MaxValue: {MaxValue}, " +
+                   $"HiddenByScript: {HiddenByScript}, " +
+                   $"CanRead: {CanRead}, " +
+                   $"CanWrite: {CanWrite}, " +
+                   $"CanCreate: {CanCreate}, " +
+                   $"Permissions: {Permissions}, " +
+                   $"ScriptReferences: [{scriptRefs}], " +
+                   $"FormLocations: [{formLocations}], " +
+                   $"SolutionNames: [{solutionNames}]";
+        }
+    }
+    // Fix for CS0229: Ambiguity between 'WebResourceInfo.Name' and 'WebResourceInfo.Name'
+    // The issue arises because the `WebResourceInfo` class has duplicate property definitions for `Name` and `DisplayName`.
+    // To resolve this, remove the duplicate properties from the `WebResourceInfo` class.
+
+    public class WebResourceInfoNew
+    {
+        public string Name { get; set; }
+        public string DisplayName { get; set; }
+        public string Path { get; set; }
+        public int WebResourceType { get; set; }
+        public string Guid { get; set; } // Add this property to uniquely identify the web resource
     }
 }
