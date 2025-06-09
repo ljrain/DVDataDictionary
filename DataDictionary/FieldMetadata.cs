@@ -1,5 +1,9 @@
 using System.Collections.Generic;
 
+// Ensure the 'FieldFormLocation' type is defined or imported
+// If 'FieldFormLocation' is part of your project but in a different namespace, add the appropriate using directive here.
+// Example: using YourNamespaceName;
+
 public class FieldMetadata
 {
     public string EntityName { get; set; }
@@ -12,7 +16,7 @@ public class FieldMetadata
     public int? Precision { get; set; }
     public int? MinValue { get; set; }
     public int? MaxValue { get; set; }
-    public List<FieldFormLocation> FormLocations { get; set; }
+    public List<DataDictionary.FieldFormLocation> FormLocations { get; set; } // Ensure 'FieldFormLocation' is defined
     public List<string> ScriptReferences { get; set; }
     public bool HiddenByScript { get; set; }
     public bool CanRead { get; set; }
