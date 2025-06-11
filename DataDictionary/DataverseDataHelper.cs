@@ -99,7 +99,7 @@ namespace DataDictionary
 
                 entity["ljr_hiddenbyscript"] = field.HiddenByScript.ToString();
                 entity["ljr_solutionname"] = field.SolutionNames != null ? string.Join(";", field.SolutionNames) : null;
-                _tracing.Trace(field.ToString());
+                //_tracing.Trace(field.ToString());
 
                 var query = new QueryExpression("ljr_column")
                 {
@@ -206,35 +206,36 @@ namespace DataDictionary
         /// </summary>
         /// <param name="solutionId">The unique identifier of the solution.</param>
         /// <returns>A list of form entities associated with the solution.</returns>
-        public List<Entity> GetFormsForSolution(Guid solutionId)
-        {
-            // 60 = System Form (main forms, quick view, quick create, etc.)
-            var query = new QueryExpression("solutioncomponent")
-            {
-                ColumnSet = new ColumnSet("objectid"),
-                Criteria = new FilterExpression
-                {
-                    Conditions =
-                    {
-                        new ConditionExpression("componenttype", ConditionOperator.Equal, 60), // 60 = System Form
-                        new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId)
-                    }
-                }
-            };
+        //public List<Entity> GetFormsForSolution(Guid solutionId)
+        //{
+        //    _tracing.Trace($"Retrieving forms for solution {solutionId}");
+        //    // 60 = System Form (main forms, quick view, quick create, etc.)
+        //    var query = new QueryExpression("solutioncomponent")
+        //    {
+        //        ColumnSet = new ColumnSet("objectid"),
+        //        Criteria = new FilterExpression
+        //        {
+        //            Conditions =
+        //            {
+        //                //new ConditionExpression("componenttype", ConditionOperator.Equal, 60), // 60 = System Form
+        //                new ConditionExpression("solutionid", ConditionOperator.Equal, solutionId)
+        //            }
+        //        }
+        //    };
 
-            var solutionComponents = _service.RetrieveMultiple(query);
-            var forms = new List<Entity>();
+        //    var solutionComponents = _service.RetrieveMultiple(query);
+        //    var forms = new List<Entity>();
 
-            foreach (var component in solutionComponents.Entities)
-            {
-                var formId = component.GetAttributeValue<Guid>("objectid");
-                var form = _service.Retrieve("systemform", formId, new ColumnSet(true));
-                forms.Add(form);
-            }
+        //    foreach (var component in solutionComponents.Entities)
+        //    {
+        //        var formId = component.GetAttributeValue<Guid>("objectid");
+        //        var form = _service.Retrieve("systemform", formId, new ColumnSet(true));
+        //        forms.Add(form);
+        //    }
 
-            _tracing.Trace($"Found {forms.Count} forms in solution {solutionId}");
-            return forms;
-        }
+        //    _tracing.Trace($"Found {forms.Count} forms in solution {solutionId}");
+        //    return forms;
+        //}
 
         /// <summary>
         /// Inserts or updates a field form location record in the custom table.
@@ -251,16 +252,16 @@ namespace DataDictionary
                 entity["ljr_formid"] = formId;
                 entity["ljr_formname"] = location.FormName;
                 entity["ljr_tabname"] = location.TabName;
-                entity["ljr_tabvisible"] = location.TabVisible;
+                //entity["ljr_tabvisible"] = location.TabVisible.ToString();
                 entity["ljr_sectionname"] = location.SectionName;
-                entity["ljr_sectionvisible"] = location.SectionVisible;
-                entity["ljr_fieldvisible"] = location.FieldVisible;
+                //entity["ljr_sectionvisible"] = location.SectionVisible.ToString();
+                //entity["ljr_fieldvisible"] = location.FieldVisible;
                 entity["ljr_fielddescription"] = location.FieldDescription;
                 entity["ljr_requiredlevel"] = location.RequiredLevel;
                 entity["ljr_permissions"] = location.Permissions;
-                entity["ljr_canread"] = location.CanRead;
-                entity["ljr_canwrite"] = location.CanWrite;
-                entity["ljr_cancreate"] = location.CanCreate;
+                //entity["ljr_canread"] = location.CanRead.ToString();
+                //entity["ljr_canwrite"] = location.CanWrite.ToString();
+                //entity["ljr_cancreate"] = location.CanCreate.ToString();
 
                 var query = new QueryExpression("ljr_fieldformlocation")
                 {

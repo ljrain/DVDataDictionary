@@ -4,19 +4,26 @@ using System.Linq;
 using System.Xml;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
-using DataDictionary; // Use the shared FieldFormLocation class
+using DataDictionary;
 
-/// <summary>  
-/// Helper class for extracting field, tab, and section visibility from form XML.  
-/// </summary>  
+/// <summary>
+/// Provides utilities for extracting field, tab, and section visibility information from Dataverse form XML.
+/// </summary>
 public static class FormFieldInspector
 {
-    /// <summary>  
-    /// Retrieves all fields with visibility information for a given entity.  
-    /// </summary>  
-    /// <param name="service">The organization service.</param>  
-    /// <param name="entityLogicalName">The logical name of the entity.</param>  
-    /// <returns>A list of field form locations.</returns>  
+    /// <summary>
+    /// Retrieves all fields with visibility information for a given entity by parsing the main forms' XML.
+    /// </summary>
+    /// <param name="service">The organization service used to query Dataverse.</param>
+    /// <param name="entityLogicalName">The logical name of the entity (e.g., "account").</param>
+    /// <returns>
+    /// A list of <see cref="FieldFormLocation"/> objects, each representing a field's location and visibility on a form.
+    /// </returns>
+    /// <remarks>
+    /// This method queries all main forms (type=2) for the specified entity and parses the form XML to extract
+    /// tab, section, and field visibility details. The result can be used to build a data dictionary or for
+    /// documentation and analysis purposes.
+    /// </remarks>
     public static IEnumerable<FieldFormLocation> GetAllFieldsWithVisibility(IOrganizationService service, string entityLogicalName)
     {
         var results = new List<FieldFormLocation>();

@@ -29,6 +29,7 @@ namespace DataDictionary
             {
                 tracingService.Trace("DataDictionaryPlugin: Entered Execute method.");
 
+                #region "setup plugin"
                 var context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
                 tracingService.Trace("DataDictionaryPlugin: Retrieved IPluginExecutionContext.");
 
@@ -38,6 +39,9 @@ namespace DataDictionary
                 var service = serviceFactory.CreateOrganizationService(context.UserId);
                 tracingService.Trace($"DataDictionaryPlugin: Created OrganizationService for UserId: {context.UserId}.");
 
+                #endregion
+
+                #region "get parameter"
                 string[] solutionNames = null;
                 if (context.InputParameters.Contains("SolutionNames"))
                 {
@@ -67,10 +71,15 @@ namespace DataDictionary
                 }
 
                 tracingService.Trace($"DataDictionaryPlugin: SolutionNames: {string.Join(", ", solutionNames)}");
+                #endregion
+
+                #region "query solutions and components"
 
                 var allEntityMetadatas = new List<EntityMetadata>();
                 var allFieldMetadatas = new List<FieldMetadata>();
                 var allWebResources = new List<WebResourceInfo>();
+                var allFormLocations = new List<FieldFormLocation>();
+
 
                 foreach (var solutionName in solutionNames.Where(n => !string.IsNullOrWhiteSpace(n)))
                 {
@@ -85,6 +94,15 @@ namespace DataDictionary
                     {
                         if (!allEntityMetadatas.Any(e => e.LogicalName == entity.LogicalName))
                             allEntityMetadatas.Add(entity);
+
+                        var allLocations = FormFieldInspector.GetAllFieldsWithVisibility(service, entity.LogicalName)
+                            .Cast<FieldFormLocation>()
+                            .ToList();
+                        foreach (FieldFormLocation loc in allLocations)
+                        {
+                            allFormLocations.Add(loc);
+                            tracingService.Trace($"DataDictionaryPlugin: Found form location " + loc.ToString());
+                        }
                     }
 
                     var fieldMetadatas = GetFieldsInSolution(service, currentSolutionId, entityMetadatas, tracingService);
@@ -125,14 +143,21 @@ namespace DataDictionary
                             Path = wr.Path
                         });
                     }
-                }
 
-                GetFormsForSolution(service, allEntityMetadatas, allFieldMetadatas, allWebResources, tracingService);
+                    //DataverseDataHelper helper = new DataverseDataHelper(service, tracingService);
+                    //var allForms = helper.GetFormsForSolution(currentSolutionId);
+
+                    //tracingService.Trace($"DataDictionaryPlugin: Forms " + allForms.Count + "retrieved for solution '{solutionName}'.");  
+
+                }
 
 
                 tracingService.Trace($"DataDictionaryPlugin: Total unique entities: {allEntityMetadatas.Count}");
                 tracingService.Trace($"DataDictionaryPlugin: Total unique fields: {allFieldMetadatas.Count}");
                 tracingService.Trace($"DataDictionaryPlugin: Total unique web resources: {allWebResources.Count}");
+                tracingService.Trace($"DataDictionaryPlugin: Total unique forms: {allFormLocations.Count}");
+
+#endregion
 
                 foreach (var entity in allEntityMetadatas)
                 {
@@ -210,7 +235,7 @@ namespace DataDictionary
                 tracingService.Trace($"DataDictionaryPlugin: CSV NoteId: {csvNoteId}");
 
                 tracingService.Trace("DataDictionaryPlugin: Storing Data Dictionary in Dataverse tables.");
-                StoreDataDictionaryInDataverse(service, allEntityMetadatas, allFieldMetadatas, allWebResources, scriptReferences, solutionNames.ToList(), tracingService);
+                StoreDataDictionaryInDataverse(service, allEntityMetadatas, allFieldMetadatas, allWebResources, allFormLocations, scriptReferences, solutionNames.ToList(), tracingService);
                 tracingService.Trace("DataDictionaryPlugin: Data Dictionary stored in Dataverse tables.");
 
                 context.OutputParameters["NoteId"] = noteId;
@@ -551,6 +576,7 @@ namespace DataDictionary
             List<EntityMetadata> allEntityMetadatas,
             List<FieldMetadata> allFieldMetadatas,
             List<WebResourceInfo> allWebResources,
+            List<FieldFormLocation> allFormLocations,
             List<string> scriptReferences,
             List<string> solutionNames,
             ITracingService tracingService)
@@ -595,9 +621,12 @@ namespace DataDictionary
                 helper.UpsertScriptReference(script);
             }
 
+            foreach (var formLoc in allFormLocations)
+            {
+
+                helper.UpsertFieldFormLocation(formLoc, formLoc.FieldName, formLoc.FormName);
             
-
-
+            }
 
             tracingService.Trace("Data Dictionary data stored in Dataverse tables.");
         }
@@ -739,6 +768,23 @@ namespace DataDictionary
         public bool CanCreate { get; set; }
         public string RequiredLevel { get; set; }
         public string Permissions { get; set; }
+
+        public override string ToString()
+        {
+            return $"FormName: {FormName}, " +
+                   $"TabName: {TabName}, " +
+                   $"TabVisible: {TabVisible}, " +
+                   $"SectionName: {SectionName}, " +
+                   $"SectionVisible: {SectionVisible}, " +
+                   $"FieldVisible: {FieldVisible}, " +
+                   $"FieldName: {FieldName}, " +
+                   $"FieldDescription: {FieldDescription}, " +
+                   $"RequiredLevel: {RequiredLevel}, " +
+                   $"Permissions: {Permissions}, " +
+                   $"CanRead: {CanRead}, " +
+                   $"CanWrite: {CanWrite}, " +
+                   $"CanCreate: {CanCreate}";
+        }
     }
 
     public class FieldMetadata
@@ -765,8 +811,7 @@ namespace DataDictionary
         public override string ToString()
         {
             var formLocations = FormLocations != null && FormLocations.Count > 0
-                ? string.Join(" | ", FormLocations.Select(f =>
-                    $"FormName: {f.FormName}, TabName: {f.TabName}, TabVisible: {f.TabVisible}, SectionName: {f.SectionName}, SectionVisible: {f.SectionVisible}, FieldVisible: {f.FieldVisible}, FieldName: {f.FieldName}, FieldDescription: {f.FieldDescription}, RequiredLevel: {f.RequiredLevel}, Permissions: {f.Permissions}, CanRead: {f.CanRead}, CanWrite: {f.CanWrite}, CanCreate: {f.CanCreate}"))
+                ? string.Join(" | ", FormLocations.Select(f => f.ToString()))
                 : "None";
 
             var scriptRefs = ScriptReferences != null && ScriptReferences.Count > 0
@@ -797,9 +842,6 @@ namespace DataDictionary
                    $"SolutionNames: [{solutionNames}]";
         }
     }
-    // Fix for CS0229: Ambiguity between 'WebResourceInfo.Name' and 'WebResourceInfo.Name'
-    // The issue arises because the `WebResourceInfo` class has duplicate property definitions for `Name` and `DisplayName`.
-    // To resolve this, remove the duplicate properties from the `WebResourceInfo` class.
 
     public class WebResourceInfoNew
     {
@@ -808,5 +850,14 @@ namespace DataDictionary
         public string Path { get; set; }
         public int WebResourceType { get; set; }
         public string Guid { get; set; } // Add this property to uniquely identify the web resource
+
+        public override string ToString()
+        {
+            return $"Name: {Name}, " +
+                   $"DisplayName: {DisplayName}, " +
+                   $"Path: {Path}, " +
+                   $"WebResourceType: {WebResourceType}, " +
+                   $"Guid: {Guid}";
+        }
     }
 }
