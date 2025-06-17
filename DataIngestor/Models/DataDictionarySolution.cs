@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace DataDictionary.Models
 {
     public class DataDictionarySolution
@@ -39,7 +40,25 @@ namespace DataDictionary.Models
             ((List<DataDictionaryEntity>)Entities).Remove(entity);
         }
 
-    }
+        public void AddAttribute(DataDictionarySolution ddSolution, DataDictionaryAttribute ddAttr)
+        { 
+            foreach (DataDictionaryEntity ddEntity in ddSolution.Entities)
+            {
+                if (ddEntity.EntityId == ddAttr.AttributeOf)
+                {
+                    ddEntity.AddAttribute(ddAttr);
+                    return;
+                }
+                else
+                { 
+                    Console.WriteLine($"Entity {ddEntity.EntityId} does not match AttributeOf {ddAttr.AttributeOf}");
+                }
 
+            }
+
+
+        }
+
+    }
 }
 

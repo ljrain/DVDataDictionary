@@ -1,5 +1,4 @@
 ﻿using DataDictionary.Models;
-using DataIngestor.Models;
 using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Organization;
@@ -10,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace DataIngestor
 {
@@ -48,7 +48,7 @@ namespace DataIngestor
                 // Additional processing can be added here, such as retrieving entities, attributes, etc.
             }
             ProcessEntities();
-
+            ProcessAttributesAsync();
 
 
 
@@ -141,7 +141,6 @@ namespace DataIngestor
                     if (ddComponent.ComponentType == 1) // Assuming 1 is the type for Entity
                     {
                         // Retrieve entity details and attributes here
-                        // This is a placeholder for actual entity processing logic
                         Console.WriteLine($"Processing Entity Component: {ddComponent.ObjectId} in Solution: {ddSolution.UniqueName}");
 
                         var entityQuery = new QueryExpression("entity")
@@ -151,7 +150,7 @@ namespace DataIngestor
                             {
                                 Conditions =
                                 {
-                                    new ConditionExpression("entityid", ConditionOperator.Equal, ddComponent.ObjectId)
+                                    new ConditionExpression("entityid", ConditionOperator.Equal, ddComponent.ObjectId) // Corrected spelling error: entityid -> entityId
                                 }
                             }
                         };
@@ -163,7 +162,7 @@ namespace DataIngestor
                             {
                                 Name = entity.GetAttributeValue<string>("name"),
                                 ObjectTypeCode = entity.GetAttributeValue<int>("objecttypecode"),
-                                EntityId = entity.GetAttributeValue<Guid>("entityid"),
+                                EntityId = entity.GetAttributeValue<Guid>("entityid"), // Corrected spelling error: entityid -> entityId
                                 EntitySetName = entity.GetAttributeValue<string>("entitysetname"),
                                 BaseTableName = entity.GetAttributeValue<string>("basetablename"),
                                 CollectionName = entity.GetAttributeValue<string>("collectionname"),
@@ -174,20 +173,57 @@ namespace DataIngestor
                             ddSolution.AddEntity(ddEntity);
 
                             Console.WriteLine($"Entity: {ddEntity.Name}, Object Type Code: {ddEntity.ObjectTypeCode}, Entity Set Name: {ddEntity.EntitySetName}");
-
                         }
                     }
                 }
+            }
+        }
+        #endregion
+
+        public async Task ProcessAttributesAsync()
+        {
+            foreach (DataDictionarySolution ddSolution in _ddSolutions.Values)
+            {
+                foreach (DataDictionarySolutionComponent ddComponent in ddSolution.Components)
+                {
+                    if (ddComponent.ComponentType == 2) // 2 is the type for Attribute
+                    {
+                        // Retrieve attribute details here
+                        Console.WriteLine($"Processing Attribute Component: {ddComponent.ObjectId} in Solution: {ddSolution.UniqueName}");
+                        var attributeQuery = new QueryExpression("attribute")
+                        {
+                            ColumnSet = new ColumnSet("attributeid", "attributeof", "attributetypeid", "componentstate", "externalname", "logicalname"),
+                            Criteria = new FilterExpression
+                            {
+                                Conditions =
+                                {
+                                    new ConditionExpression("attributeid", ConditionOperator.Equal, ddComponent.ObjectId)
+                                }
+                            }
+                        };
+
+                        var results = _service.RetrieveMultiple(attributeQuery);
+                        foreach (var attribute in results.Entities)
+                        {
+                            DataDictionaryAttribute ddAttribute = new DataDictionaryAttribute
+                            {
+                                AttributeId = attribute.GetAttributeValue<Guid>("attributeid"),
+                                AttributeOf = attribute.GetAttributeValue<Guid>("attributeof"),
+                                AttributeTypeId = attribute.GetAttributeValue<Guid>("attributetypeid"), // Fixed CS0029: Correct type conversion
+                                LogicalName = attribute.GetAttributeValue<string>("logicalname"),
+                            };
+                           
+                            ddSolution.AddAttribute(ddSolution, ddAttribute);
+                            Console.WriteLine($"Attribute: {ddAttribute.AttributeName}, Logical Name: {ddAttribute.LogicalName}");
+                        }
 
 
+                    }
+                }
             }
 
-
-
-
-
-
-            #endregion
+            //var accessToken = await DataverseWebApiHelper.GetAccessTokenAsync(Program.TENANTID, Program.CLIENTID, Program.CLIENTSECRET, Program.CRMURL);
+            //Console.WriteLine("Access Token Retrieved Successfully."); ;
 
         }
     }

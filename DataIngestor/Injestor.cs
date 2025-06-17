@@ -183,7 +183,7 @@ namespace DataIngestor
         {
             var attributeQuery = new QueryExpression("attribute")
             {
-                ColumnSet = new ColumnSet("attributeid", "name","attributeof"),
+                ColumnSet = new ColumnSet("attributeid", "name", "attributeof"),
                 Criteria = new FilterExpression
                 {
                     Conditions =
@@ -196,13 +196,14 @@ namespace DataIngestor
             var attributes = _service.RetrieveMultiple(attributeQuery);
             foreach (var attribute in attributes.Entities)
             {
-                Models.DataDictionaryAttribute ddAttribute = new Models.DataDictionaryAttribute();
-                ddAttribute.AttributeId = attribute.GetAttributeValue<Guid>("attributeid").ToString(); // Fix for CS0029: Convert Guid to string
-                ddAttribute.Name = attribute.GetAttributeValue<string>("name"); 
-                ddAttribute.AttributeOf = attribute.GetAttributeValue<string>("attributeof"); 
+                DataDictionaryAttribute ddAttribute = new DataDictionaryAttribute();
+                ddAttribute.AttributeId = attribute.GetAttributeValue<Guid>("attributeid"); // Fix for CS0029: Use Guid directly
+                ddAttribute.LogicalName = attribute.GetAttributeValue<string>("logicalname");
+                ddAttribute.AttributeOf = attribute.GetAttributeValue<Guid>("attributeof");
 
-                //ddSolution.AddAttribute(ddAttribute); // Assuming AddAttribute is a valid method in ddSolution
-                Console.WriteLine($"Added Attribute: {ddAttribute.Name} with ID: {ddAttribute.AttributeId}");
+                // Assuming AddAttribute is a valid method in ddSolution
+                ddSolution.AddAttribute(ddSolution, ddAttribute); 
+                Console.WriteLine($"Added Attribute: {ddAttribute.AttributeName} with ID: {ddAttribute.AttributeId}");
             }
         }
         public void GetFormsInSolution(string solutionId)
