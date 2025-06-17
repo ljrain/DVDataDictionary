@@ -9,7 +9,6 @@ namespace DataDictionary.Models
     public class DataDictionarySolutionComponent
     {
         public Guid ObjectId { get; set; }
-
         public int ComponentType { get; set; }
         public string ComponentTypeName { get; set; }
         public bool IsMetadata { get; set; }

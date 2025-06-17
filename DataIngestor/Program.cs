@@ -30,8 +30,8 @@ namespace DataIngestor
 
                     string[] pars = { "SampleSolution" }; // Replace with your actual solution names
                                                                                   
-                    Injestor injestor = new Injestor(serviceClient);
-                    injestor.Process(pars);
+                    InjestorV2 injestor = new InjestorV2(serviceClient);
+                    injestor.ProcessSolutions(pars);
 
 
                 }

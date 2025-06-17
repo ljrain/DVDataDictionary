@@ -202,6 +202,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Injestor.cs" />
+    <Compile Include="InjestorV2.cs" />
+    <Compile Include="Models\DataDictionaryAttribute.cs" />
     <Compile Include="Models\DataDictionaryEntity.cs" />
     <Compile Include="Models\DataDictionarySolution.cs" />
     <Compile Include="Models\DataDictionarySolutionComponent.cs" />

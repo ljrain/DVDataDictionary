@@ -114,6 +114,7 @@
     <Compile Include="FieldFormLocation.cs" />
     <Compile Include="FieldMetadata.cs" />
     <Compile Include="FormFieldInspector.cs" />
+    <Compile Include="Models\DataDictionaryAttribute.cs" />
     <Compile Include="Models\DataDictionaryEntity.cs" />
     <Compile Include="Models\DataDictionarySolution.cs" />
     <Compile Include="Models\DataDictionarySolutionComponent.cs" />

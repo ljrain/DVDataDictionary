@@ -38,16 +38,17 @@ namespace DataIngestor
         {
 
             GetSolutions(uniqueNames);
+
             foreach (var solution in _solutions.Values)
             {
-                GetComponentsInSolution(solution.SolutionId);
+                GetComponentsInSolution(solution);
                 Console.WriteLine("Collected solutions");
 
-                GetEntitiesInSolution(solution.SolutionId);
+                GetEntitiesInSolution(solution);
                 Console.WriteLine("Collected entities");
 
-                //GetAttributesInSolution(solution.SolutionId);
-                //Console.WriteLine("Collected attributes");
+                GetAttributesInSolution(solution);
+                Console.WriteLine("Collected attributes");
 
                 //GetFormsInSolution(solution.SolutionId);
                 //Console.WriteLine("Collected forms");
@@ -95,8 +96,8 @@ namespace DataIngestor
         /// <summary>
         /// get all solution components for a given solution ID.
         /// </summary>
-        /// <param name="solutionId"></param>
-        public void GetComponentsInSolution(string solutionId)
+        /// <param name="ddSolution"></param>
+        public void GetComponentsInSolution(DataDictionarySolution ddSolution)
         {
             // Query solutioncomponent for forms in the solution
             var componentQuery = new QueryExpression("solutioncomponent")
@@ -106,31 +107,25 @@ namespace DataIngestor
                 {
                     Conditions =
             {
-                new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(solutionId)),
+                new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(ddSolution.SolutionId)),
             }
                 }
             };
-
+            
             var components = _service.RetrieveMultiple(componentQuery);
             foreach (var component in components.Entities)
             {
-                var solutionName = _solutions.FirstOrDefault(s => s.Value.SolutionId == solutionId).Key;
-                if (_solutions.TryGetValue(solutionName, out DataDictionarySolution ddSolution))
+                DataDictionarySolutionComponent ddComponent = new DataDictionarySolutionComponent
                 {
+                    ObjectId = component.GetAttributeValue<Guid>("objectid"),
+                    ComponentType = component.GetAttributeValue<OptionSetValue>("componenttype")?.Value ?? 0,
+                    IsMetadata = component.GetAttributeValue<bool>("ismetadata"),
+                    //RootComponentBehavior = component.GetAttributeValue<OptionSetValue>("rootcomponentbehavior")?.Value ?? 0,
+                    RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
+                };
+                _solutions[ddSolution.UniqueName].AddComponent(ddComponent);
 
-                    var componentTypeValue = component.GetAttributeValue<OptionSetValue>("componenttype");
-                    int componentType = componentTypeValue?.Value ?? 0;
-
-                    DataDictionarySolutionComponent ddComponent = new DataDictionarySolutionComponent
-                    {
-                        ObjectId = component.Id,
-                        ComponentType = component.GetAttributeValue<OptionSetValue>("componenttype").Value,
-                        IsMetadata = component.GetAttributeValue<bool>("ismetadata"),
-                        //RootComponentBehavior = component.GetAttributeValue<OptionSetValue>("rootcomponentbehavior").Value,
-                        RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
-                    };
-                    ddSolution.AddComponent(ddComponent);
-                }
+                Console.WriteLine($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Root Component Behavior: {ddComponent.RootSolutionComponentId}");
             }
         }
 
@@ -138,10 +133,10 @@ namespace DataIngestor
         /// get all entities in the solution based on the components returned
         /// </summary>
         /// <param name="solutionId"></param>
-        public void GetEntitiesInSolution(string solutionId)
+        public void GetEntitiesInSolution(DataDictionarySolution ddSolution)
         {
             // first check for any entities that are part of a solution by looking at the solutionid
-            foreach (var solution in _solutions.Values.Where(s => s.SolutionId == solutionId))
+            foreach (var solution in _solutions.Values.Where(s => s.SolutionId == ddSolution.SolutionId))
             {
                 var entityQuery = new QueryExpression("entity")
                 {
@@ -150,7 +145,7 @@ namespace DataIngestor
                     {
                         Conditions =
                         {
-                            new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(solutionId))
+                            new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(ddSolution.SolutionId))
                         }
                     }
                 };
@@ -179,62 +174,37 @@ namespace DataIngestor
 
             // second, check all components that have a componenttype of 1, which is Entity and a rootComponentBehavior of 1, which is Entity
             string[] objectids = GetComponentsOfTypeAndBehavior();
-            EntityCollection results = GetEntitiesByObjectIds(objectids);
-
-            foreach (var entity in results.Entities)
-            {
-                DataDictionaryEntity ddEntity = new DataDictionaryEntity();
-                ddEntity.EntityId = entity.GetAttributeValue<Guid>("entityid");
-                ddEntity.LogicalName = entity.GetAttributeValue<string>("logicalname");
-
-                // Add the new entity to the solution
-                var solutionName = _solutions.FirstOrDefault(s => s.Value.SolutionId == solutionId).Key;
-                if (_solutions.TryGetValue(solutionName, out DataDictionarySolution ddSolution))
-                {
-                    ddSolution.AddEntity(ddEntity);
-                }
-                else
-                {
-                    // If the solution is not found, you might want to handle it accordingly
-                    Console.WriteLine($"Solution with ID {solutionId} not found for entity {ddEntity.EntitySetName}");
-                }
-
-                Console.WriteLine($"Added Component Entity: {ddEntity.EntitySetName} with ID: {ddEntity.EntityId}");
-
-            }
+            GetEntitiesByObjectIds(objectids,ddSolution);
             Console.WriteLine($"Total Entities Collected: {_solutions.Values.Sum(s => s.Entities.Count())}");
         }
 
 
-        //public void GetAttributesInSolution(string solutionId)
-        //{
+        public void GetAttributesInSolution(DataDictionarySolution ddSolution)
+        {
+            var attributeQuery = new QueryExpression("attribute")
+            {
+                ColumnSet = new ColumnSet("attributeid", "name","attributeof"),
+                Criteria = new FilterExpression
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(ddSolution.SolutionId))
+                    }
+                }
+            };
 
-        //    var attributeQuery = new QueryExpression("attribute")
-        //    {
-        //        ColumnSet = new ColumnSet("attributeid", "attributename", "schemaid"),
-        //        Criteria = new FilterExpression
-        //        {
-        //            Conditions =
-        //            {
-        //                new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(solutionId))         
-        //            }
-        //        }
-        //    };
+            var attributes = _service.RetrieveMultiple(attributeQuery);
+            foreach (var attribute in attributes.Entities)
+            {
+                Models.DataDictionaryAttribute ddAttribute = new Models.DataDictionaryAttribute();
+                ddAttribute.AttributeId = attribute.GetAttributeValue<Guid>("attributeid").ToString(); // Fix for CS0029: Convert Guid to string
+                ddAttribute.Name = attribute.GetAttributeValue<string>("name"); 
+                ddAttribute.AttributeOf = attribute.GetAttributeValue<string>("attributeof"); 
 
-        //    var attributes = _service.RetrieveMultiple(attributeQuery);
-        //    foreach (var attribute in attributes.Entities)
-        //    {
-        //        var newAttribute = new DataDictionaryAttribute
-        //        {
-        //            AttributeId = attribute.GetAttributeValue<Guid>("attributeid"),
-        //            AttributeName = attribute.GetAttributeValue<string>("attributename"),
-        //            SchemaId = attribute.GetAttributeValue<Guid>("schemaid")
-        //        };
-
-        //        _solutions.AddAttribute(newAttribute);
-        //        Console.WriteLine($"Added Attribute: {newAttribute.AttributeName} with ID: {newAttribute.AttributeId}");
-        //    }
-        //}
+                //ddSolution.AddAttribute(ddAttribute); // Assuming AddAttribute is a valid method in ddSolution
+                Console.WriteLine($"Added Attribute: {ddAttribute.Name} with ID: {ddAttribute.AttributeId}");
+            }
+        }
         public void GetFormsInSolution(string solutionId)
         {
         }
@@ -269,7 +239,7 @@ namespace DataIngestor
         // 6. Execute the query using _service.RetrieveMultiple.
         // 7. Return the EntityCollection or process as needed.
 
-        public EntityCollection GetEntitiesByObjectIds(string[] objectIds)
+        public void GetEntitiesByObjectIds(string[] objectIds,DataDictionarySolution ddSolution)
         {
             var query = new QueryExpression("solutioncomponent")
             {
@@ -304,8 +274,15 @@ namespace DataIngestor
                 Console.WriteLine($"Component Type: {entity.GetAttributeValue<OptionSetValue>("componenttype")?.Value}");
                 Console.WriteLine($"Entity Logical Name: {entity.GetAttributeValue<AliasedValue>("entity.logicalname")?.Value}");
                 // Add more fields as needed
+
+                DataDictionaryEntity ddEntity = new DataDictionaryEntity();
+                ddEntity.EntityId = entity.Id;
+                ddEntity.LogicalName = entity.GetAttributeValue<AliasedValue>("entity.logicalname").Value.ToString();
+
+
+                ddSolution.AddEntity(ddEntity);
+
             }
-            return (results);
         }
     }
 }

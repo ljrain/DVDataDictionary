@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DataIngestor.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -28,6 +29,20 @@ namespace DataDictionary.Models
         public string ParentControllingAttributeName { get; set; }
         public string PhysicalName { get; set; }
         public string ReportViewName { get; set; }
+        public string Name { get; set; }
 
+        public IEnumerable<DataDictionaryAttribute> Attributes { get; set; } = new List<DataDictionaryAttribute>();
+
+        public void AddAttribute(DataDictionaryAttribute attribute)
+        {
+            if (attribute == null) throw new ArgumentNullException(nameof(attribute));
+            ((List<DataDictionaryAttribute>)Attributes).Add(attribute);
+        }
+
+        public void RemoveAttribute(DataDictionaryAttribute attribute)
+        {
+            if (attribute == null) throw new ArgumentNullException(nameof(attribute));
+            ((List<DataDictionaryAttribute>)Attributes).Remove(attribute);
+        }
     }
 }
