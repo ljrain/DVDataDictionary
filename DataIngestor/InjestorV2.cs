@@ -494,18 +494,21 @@ namespace DataIngestor
         }
 
 
+
         public void SaveToDataverse()
         {
-            // Save DataDictionaryAttributeMetadata to Dataverse as a custom entity record
+            // Use ExecuteMultipleRequest for batch saving to Dataverse
+            var batchSize = 1000; // Adjust as needed for performance and Dataverse limits
             foreach (var ddSolution in _ddSolutions.Values)
             {
-                if (ddSolution.AttributeMetadata == null)
+                if (ddSolution.AttributeMetadata == null || ddSolution.AttributeMetadata.Count == 0)
                     continue;
 
+                var requests = new List<OrganizationRequest>();
                 foreach (var attrMeta in ddSolution.AttributeMetadata)
                 {
-                    var entity = new Entity("ljr_datadictionaryattributemetadata"); // Replace with your Dataverse custom entity logical name
-                    entity["ljr_datadictionaryattributemetadata1"] = attrMeta.Table + "-" + attrMeta.ColumnSchema; 
+                    var entity = new Entity("ljr_datadictionaryattributemetadata");
+                    entity["ljr_datadictionaryattributemetadata1"] = attrMeta.Table + "-" + attrMeta.ColumnSchema;
                     entity["ljr_table"] = attrMeta.Table;
                     entity["ljr_columndisplay"] = attrMeta.ColumnDisplay;
                     entity["ljr_columnlogical"] = attrMeta.ColumnLogical;
@@ -517,27 +520,83 @@ namespace DataIngestor
                     entity["ljr_iscalculated"] = attrMeta.IsCalculated;
                     entity["ljr_isformula"] = attrMeta.IsFormula;
                     entity["ljr_lookupto"] = attrMeta.LookupTo;
-                    //entity["ljr_maxlength"] = attrMeta.MaxLength;
-                    //entity["ljr_minvalue"] = attrMeta.MinValue;
-                    entity["ljr_maxvalue"] = attrMeta.MaxValue;
-                    entity["ljr_precision"] = attrMeta.Precision;
-                    entity["ljr_optionset"] = attrMeta.OptionSet;
-                    entity["ljr_value"] = attrMeta.Value;
+
+                    // Only add MaxValue, MinValue, Precision, MaxLength if not null
+                    if (attrMeta.MaxValue != null)
+                        entity["ljr_maxvalue"] = attrMeta.MaxValue;
+                    if (attrMeta.MinValue != null)
+                        entity["ljr_minvalue"] = attrMeta.MinValue;
+                    if (attrMeta.Precision != null)
+                        entity["ljr_precision"] = attrMeta.Precision;
+                    if (attrMeta.MaxLength != null)
+                        entity["ljr_maxlength"] = attrMeta.MaxLength;
+
+                    if (attrMeta.OptionSet != null)
+                        entity["ljr_optionset"] = attrMeta.OptionSet;
+                    if (attrMeta.Value != null)
+                        entity["ljr_value"] = attrMeta.Value;
+
                     entity["ljr_description"] = attrMeta.Description;
                     entity["ljr_langcode"] = attrMeta.LangCode;
 
-                    try
+                    var createRequest = new CreateRequest { Target = entity };
+                    requests.Add(createRequest);
+
+                    // Send batch if batchSize reached
+                    if (requests.Count == batchSize)
                     {
-                        _service.Create(entity);
-                        Console.WriteLine($"Saved attribute metadata: {entity["ljr_datadictionaryattributemetadata1"]}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to save attribute metadata: {attrMeta.ColumnLogical}. Error: {ex.Message}");
+                        ExecuteBatch(requests);
+                        requests.Clear();
                     }
                 }
 
+                // Send any remaining requests
+                if (requests.Count > 0)
+                {
+                    ExecuteBatch(requests);
+                }
+            }
+        }
 
+        private void ExecuteBatch(List<OrganizationRequest> requests)
+        {
+            var executeMultipleRequest = new ExecuteMultipleRequest
+            {
+                Requests = new OrganizationRequestCollection(),
+                Settings = new ExecuteMultipleSettings
+                {
+                    ContinueOnError = true,
+                    ReturnResponses = true
+                }
+            };
+
+            foreach (var req in requests)
+            {
+                executeMultipleRequest.Requests.Add(req);
+            }
+
+            try
+            {
+                var response = (ExecuteMultipleResponse)_service.Execute(executeMultipleRequest);
+                for (int i = 0; i < response.Responses.Count; i++)
+                {
+                    var item = response.Responses[i];
+                    if (item.Fault != null)
+                    {
+                        Console.WriteLine($"Failed to save attribute metadata in batch: {item.Fault.Message}");
+                    }
+                    else
+                    {
+                        var createReq = executeMultipleRequest.Requests[item.RequestIndex] as CreateRequest;
+                        var entity = createReq?.Target as Entity;
+                        var name = entity?["ljr_datadictionaryattributemetadata1"];
+                        Console.WriteLine($"Saved attribute metadata: {name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Batch save failed: {ex.Message}");
             }
         }
     }
