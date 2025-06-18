@@ -54,7 +54,7 @@ namespace DataIngestor
             ProcessAttributesAsync();
             LogSchema();
             Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
-
+            SaveToDataverse();
 
 
 
@@ -217,7 +217,7 @@ namespace DataIngestor
                                 AttributeTypeId = attribute.GetAttributeValue<Guid>("attributetypeid"), // Fixed CS0029: Correct type conversion
                                 LogicalName = attribute.GetAttributeValue<string>("logicalname"),
                             };
-                           
+
                             ddSolution.AddAttribute(ddSolution, ddAttribute);
                             Console.WriteLine($"Attribute: {ddAttribute.AttributeName}, Logical Name: {ddAttribute.LogicalName}");
                         }
@@ -249,7 +249,8 @@ namespace DataIngestor
                 Console.Write("Retrieving Metadata .");
                 request = new RetrieveAllEntitiesRequest()
                 {
-                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes,                   RetrieveAsIfPublished = false,
+                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes,
+                    RetrieveAsIfPublished = false,
                 };
                 response = (RetrieveAllEntitiesResponse)_service.Execute(request);
 
@@ -272,7 +273,7 @@ namespace DataIngestor
                             ddMeta.AuditEnabled = attribute.IsAuditEnabled.Value;
                             //ddMeta.IsCalculated = attribute.IsCalculated.Value ?? false;
                             ddMeta.LangCode = attribute.DisplayName.UserLocalizedLabel?.LanguageCode ?? 0;
-                            
+
                             switch (attribute.AttributeType)
                             {
                                 //case AttributeTypeCode.Boolean:
@@ -398,9 +399,9 @@ namespace DataIngestor
                                     FormulaDefinition = ((PicklistAttributeMetadata)attribute).FormulaDefinition;
                                     // sb.AppendFormat("\t\t\t\t", ((PicklistAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
                                     //sb.AppendFormat("\t{0}\t{1}\t\t\t\t\t"
-                                        //, String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
-                                        //, String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
-                                        //);
+                                    //, String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
+                                    //, String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
+                                    //);
                                     //tabDepth = 17;
                                     //tabIndex = 14;
                                     PicklistAM = (PicklistAttributeMetadata)attribute;
@@ -493,7 +494,51 @@ namespace DataIngestor
         }
 
 
+        public void SaveToDataverse()
+        {
+            // Save DataDictionaryAttributeMetadata to Dataverse as a custom entity record
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                if (ddSolution.AttributeMetadata == null)
+                    continue;
+
+                foreach (var attrMeta in ddSolution.AttributeMetadata)
+                {
+                    var entity = new Entity("ljr_datadictionaryattributemetadata"); // Replace with your Dataverse custom entity logical name
+                    entity["ljr_datadictionaryattributemetadata1"] = attrMeta.Table + "-" + attrMeta.ColumnSchema; 
+                    entity["ljr_table"] = attrMeta.Table;
+                    entity["ljr_columndisplay"] = attrMeta.ColumnDisplay;
+                    entity["ljr_columnlogical"] = attrMeta.ColumnLogical;
+                    entity["ljr_columnschema"] = attrMeta.ColumnSchema;
+                    entity["ljr_datatype"] = attrMeta.DataType;
+                    entity["ljr_formuladefinition"] = attrMeta.FormulaDefinition;
+                    entity["ljr_iscustom"] = attrMeta.IsCustom;
+                    entity["ljr_auditenabled"] = attrMeta.AuditEnabled;
+                    entity["ljr_iscalculated"] = attrMeta.IsCalculated;
+                    entity["ljr_isformula"] = attrMeta.IsFormula;
+                    entity["ljr_lookupto"] = attrMeta.LookupTo;
+                    //entity["ljr_maxlength"] = attrMeta.MaxLength;
+                    //entity["ljr_minvalue"] = attrMeta.MinValue;
+                    entity["ljr_maxvalue"] = attrMeta.MaxValue;
+                    entity["ljr_precision"] = attrMeta.Precision;
+                    entity["ljr_optionset"] = attrMeta.OptionSet;
+                    entity["ljr_value"] = attrMeta.Value;
+                    entity["ljr_description"] = attrMeta.Description;
+                    entity["ljr_langcode"] = attrMeta.LangCode;
+
+                    try
+                    {
+                        _service.Create(entity);
+                        Console.WriteLine($"Saved attribute metadata: {entity["ljr_datadictionaryattributemetadata1"]}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to save attribute metadata: {attrMeta.ColumnLogical}. Error: {ex.Message}");
+                    }
+                }
 
 
+            }
+        }
     }
 }

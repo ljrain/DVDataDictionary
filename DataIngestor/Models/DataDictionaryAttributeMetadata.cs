@@ -18,10 +18,10 @@ namespace DataDictionary.Models
         public Int64? MaxLength { get; set; }
         public Int64? MinValue { get; set; }
         public Int64? MaxValue { get; set; }
-        public Int64? Precision { get; set; }
+        public Int32? Precision { get; set; }
         public string OptionSet { get; set; }
-        public Int64? Value { get; set; }
+        public string Value { get; set; }
         public string Description { get; set; }
-        public Int64? LangCode { get; set; }
+        public Int32? LangCode { get; set; }
     }
 }

@@ -201,7 +201,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DataverseWebApiHelper.cs" />
     <Compile Include="Injestor.cs" />
     <Compile Include="InjestorV2.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
