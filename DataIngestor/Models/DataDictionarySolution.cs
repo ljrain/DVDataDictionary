@@ -9,6 +9,10 @@ namespace DataDictionary.Models
 {
     public class DataDictionarySolution
     {
+
+        public List<DataDictionaryAttributeMetadata> AttributeMetadata { get; set; } = new List<DataDictionaryAttributeMetadata>();
+
+
         public string FriendlyName { get; set; }
         public string SolutionId { get; set; }
         public string UniqueName { get; set; }
