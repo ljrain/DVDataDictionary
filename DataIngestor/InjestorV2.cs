@@ -73,10 +73,10 @@ namespace DataIngestor
 
                     string base64Content = webResource.GetAttributeValue<string>("content");
                     string javascript = Encoding.UTF8.GetString(Convert.FromBase64String(base64Content));
-                    Console.WriteLine(javascript);
+                    //Console.WriteLine(javascript);
                     DataDictionaryWebResource webRes = new DataDictionaryWebResource();
-                    webRes.WebResourceId = webRes.WebResourceId;
-                    webRes.DisplayName = webRes.DisplayName;
+                    webRes.WebResourceId = webResource.Id;
+                    webRes.DisplayName = webResource.Attributes["name"].ToString();
                     webRes.Content = javascript;
 
                     _ddSolutions["SampleSolution"].WebResources.Add(webRes);
@@ -90,7 +90,7 @@ namespace DataIngestor
             }
             #endregion 
 
-
+            SaveJavascriptToDataverse(); // Save web resources to Dataverse
             LogSchema();
             Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
             SaveToDataverse();
@@ -342,10 +342,10 @@ namespace DataIngestor
 
 
         /// <summary>
-        /// Parses a JavaScript string and extracts Dataverse API events/actions.
+        /// Parses a JavaScript string and extracts Dataverse API events/actions and hidden fields.
         /// </summary>
         /// <param name="script">The JavaScript code as a string.</param>
-        /// <returns>List of found Dataverse API events/actions.</returns>
+        /// <returns>List of found Dataverse API events/actions and hidden fields.</returns>
         private List<string> ParseJavaScript(string script)
         {
             var found = new List<string>();
@@ -389,13 +389,38 @@ namespace DataIngestor
                 }
             }
 
+            // --- Find hidden fields ---
+            // Looks for: formContext.getControl("fieldname").setVisible(false);
+            var hiddenFieldRegex = new Regex(@"formContext\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setVisible\s*\(\s*false\s*\)", RegexOptions.IgnoreCase);
+            var hiddenMatches = hiddenFieldRegex.Matches(script);
+            var hiddenFields = new List<string>();
+            foreach (Match match in hiddenMatches)
+            {
+                if (match.Groups.Count > 1)
+                {
+                    string fieldName = match.Groups[1].Value;
+                    hiddenFields.Add(fieldName);
+                }
+            }
+
+            if (hiddenFields.Count > 0)
+            {
+                Console.WriteLine("Hidden fields found in script:");
+                foreach (var field in hiddenFields)
+                {
+                    Console.WriteLine($" - {field}");
+                    found.Add("HiddenField:" + field);
+                }
+            }
+
             // Optionally, log or output the found events/actions
             if (found.Count > 0)
             {
                 Console.WriteLine("Dataverse API events/actions found in script:");
                 foreach (var evt in found)
                 {
-                    Console.WriteLine($" - {evt}");
+                    if (!evt.StartsWith("HiddenField:"))
+                        Console.WriteLine($" - {evt}");
                 }
             }
 
@@ -650,6 +675,34 @@ namespace DataIngestor
                 PicklistAM = null;
                 response = null;
                 request = null;
+            }
+        }
+
+
+        private void SaveJavascriptToDataverse()
+        {
+            // Save all web resources to Dataverse
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                if (ddSolution.WebResources == null || ddSolution.WebResources.Count == 0)
+                    continue;
+                foreach (var webResource in ddSolution.WebResources)
+                {
+                    var entity = new Entity("ljr_webresource");
+                    //entity["webresourceidunique"] = webResource.WebResourceId; // Use unique ID for updates
+                    entity["ljr_displayname"] = webResource.DisplayName;
+                    entity["ljr_javascript"] = webResource.Content;
+                    //entity["webresourcetype"] = new OptionSetValue(61); // Assuming 61 is the type for 
+                    try
+                    {
+                        _service.Create(entity);
+                        Console.WriteLine($"Updated Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error updating Web Resource '{webResource.DisplayName}': {ex.Message}");
+                    }
+                }
             }
         }
 
