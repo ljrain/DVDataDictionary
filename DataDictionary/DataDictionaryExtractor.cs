@@ -169,19 +169,65 @@ namespace DataDictionary
             // check for components that also have a behavior of 1, which is RootComponentBehavior
 
 
-
-
-
-
         }
+
+        /// <summary>
+        /// Retrieves all web resources matching the given object IDs.
+        /// </summary>
+        /// <param name="objectIds">Array of webresourceid strings (GUIDs).</param>
+        /// <returns>List of Entity objects representing web resources.</returns>
+        public List<Entity> GetWebResourcesByObjectIds(string[] objectIds)
+        {
+            if (objectIds == null || objectIds.Length == 0)
+                return new List<Entity>();
+
+            _tracingService?.Trace("Retrieving web resources for object IDs: {0}", string.Join(", ", objectIds));
+
+            var query = new QueryExpression("webresource")
+            {
+                ColumnSet = new ColumnSet(
+                    "webresourceid",
+                    "webresourceidunique",
+                    "webresourcetype",
+                    "webresourcetypename",
+                    "dependencyxml",
+                    "description",
+                    "displayname",
+                    "name",
+                    "content",
+                    "createdon",
+                    "modifiedon"
+                ),
+                Criteria = new FilterExpression
+                {
+                    FilterOperator = LogicalOperator.And
+                }
+            };
+
+            // Add the 'In' condition for the webresourceid
+            var guidList = objectIds
+                .Where(id => Guid.TryParse(id, out _))
+                .Select(id => new Guid(id))
+                .ToList();
+
+            if (guidList.Count == 0)
+                return new List<Entity>();
+
+            query.Criteria.AddCondition(new ConditionExpression("webresourceid", ConditionOperator.In, guidList.Cast<object>().ToArray()));
+
+            var results = _service.RetrieveMultiple(query);
+
+            _tracingService?.Trace("Found {0} web resources.", results.Entities.Count);
+
+            return results.Entities.ToList();
+        }
+
         public void GetAttributesInSolution(string solutionId)
         {
         }
         public void GetFormsInSolution(string solutionId)
         {
         }
-
-
 
         #endregion
     }

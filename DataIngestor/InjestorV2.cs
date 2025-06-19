@@ -1,4 +1,5 @@
 ﻿using DataDictionary.Models;
+using DataIngestor.Models;
 using Microsoft.Crm.Sdk.Messages;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Xrm.Sdk;
@@ -13,8 +14,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Workflow.Runtime.Tracking;
 
 namespace DataIngestor
 {
@@ -43,8 +46,8 @@ namespace DataIngestor
         {
             Stopwatch timerGlobal = new Stopwatch(); // Replace Timer with Stopwatch
             timerGlobal.Start();
+
             GetSolutions(solutionUniqueNames);
-            ProcessEntities();
             foreach (var ddSolution in _ddSolutions.Values)
             {
                 Console.WriteLine($"Processing Solution: {ddSolution.UniqueName}");
@@ -52,9 +55,41 @@ namespace DataIngestor
                 
 
             }
+            ProcessEntities();
+            
             Console.WriteLine(timerGlobal.Elapsed.ToString());
 
             _ddSolutions["SampleSolution"].GetLogicalEntitiesFromSolutions();
+
+            #region Get all web resources and javascript decoded
+            string[] webResourceObjectIds = GetWebResourceObjectIds();
+            if (webResourceObjectIds.Length > 0)
+            {
+                Console.WriteLine($"Found {webResourceObjectIds.Length} Web Resource Object IDs to process.");
+                var webResources = GetWebResourcesByObjectIds(webResourceObjectIds);
+                foreach (var webResource in webResources)
+                {
+                    Console.WriteLine($"Found Web Resource: {webResource.GetAttributeValue<string>("displayname")} ({webResource.GetAttributeValue<Guid>("webresourceidunique")})");
+
+                    string base64Content = webResource.GetAttributeValue<string>("content");
+                    string javascript = Encoding.UTF8.GetString(Convert.FromBase64String(base64Content));
+                    Console.WriteLine(javascript);
+                    DataDictionaryWebResource webRes = new DataDictionaryWebResource();
+                    webRes.WebResourceId = webRes.WebResourceId;
+                    webRes.DisplayName = webRes.DisplayName;
+                    webRes.Content = javascript;
+
+                    _ddSolutions["SampleSolution"].WebResources.Add(webRes);
+                    List<string> parsedJavaScript = ParseJavaScript(webRes.Content); // Parse the JavaScript content for Dataverse API events/actions
+                    Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions from Web Resource: {webRes.DisplayName}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No Web Resource Object IDs found to process.");
+            }
+            #endregion 
+
 
             LogSchema();
             Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
@@ -66,6 +101,23 @@ namespace DataIngestor
 
 
         #region Private Methods
+
+        private string[] GetWebResourceObjectIds()
+        { 
+            List<string> objectIds = new List<string>();
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                foreach (var ddComponent in ddSolution.Components)
+                {
+                    if (ddComponent.ComponentType == 61) // Assuming 61 is the type for Web Resource
+                    {
+                        objectIds.Add(ddComponent.ObjectId.ToString());
+                    }
+                }
+            }   
+            return objectIds.ToArray();
+        }
+
 
         /// <summary>
         /// Takes in a string array of solution unique names and retrieves the solutions from CRM.
@@ -238,6 +290,119 @@ namespace DataIngestor
         }
 
 
+        /// <summary>
+        /// Retrieves all web resources matching the given object IDs.
+        /// </summary>
+        /// <param name="objectIds">Array of webresourceid strings (GUIDs).</param>
+        /// <returns>List of Entity objects representing web resources.</returns>
+        public List<Entity> GetWebResourcesByObjectIds(string[] objectIds)
+        {
+            if (objectIds == null || objectIds.Length == 0)
+                return new List<Entity>();
+
+            //_tracingService?.Trace("Retrieving web resources for object IDs: {0}", string.Join(", ", objectIds));
+
+            var query = new QueryExpression("webresource")
+            {
+                ColumnSet = new ColumnSet(
+                    "webresourceid",
+                    "webresourceidunique",
+                    "webresourcetype",
+                    "dependencyxml",
+                    "description",
+                    "displayname",
+                    "name",
+                    "content",
+                    "createdon",
+                    "modifiedon"
+                ),
+                Criteria = new FilterExpression
+                {
+                    FilterOperator = LogicalOperator.And
+                }
+            };
+
+            // Add the 'In' condition for the webresourceid
+            var guidList = objectIds
+                .Where(id => Guid.TryParse(id, out _))
+                .Select(id => new Guid(id))
+                .ToList();
+
+            if (guidList.Count == 0)
+                return new List<Entity>();
+
+            query.Criteria.AddCondition(new ConditionExpression("webresourceid", ConditionOperator.In, guidList.Cast<object>().ToArray()));
+
+            var results = _service.RetrieveMultiple(query);
+
+            //_tracingService?.Trace("Found {0} web resources.", results.Entities.Count);
+
+            return results.Entities.ToList();
+        }
+
+
+        /// <summary>
+        /// Parses a JavaScript string and extracts Dataverse API events/actions.
+        /// </summary>
+        /// <param name="script">The JavaScript code as a string.</param>
+        /// <returns>List of found Dataverse API events/actions.</returns>
+        private List<string> ParseJavaScript(string script)
+        {
+            var found = new List<string>();
+            if (string.IsNullOrWhiteSpace(script))
+                return found;
+
+            // List of common Dataverse JS API patterns to look for
+            var patterns = new[]
+            {
+                @"Xrm\.Page",
+                @"formContext",
+                @"Xrm\.WebApi",
+                @"Xrm\.Navigation",
+                @"Xrm\.Utility",
+                @"addOnLoad",
+                @"addOnSave",
+                @"addOnChange",
+                @"removeOnLoad",
+                @"removeOnSave",
+                @"removeOnChange",
+                @"getAttribute",
+                @"getControl",
+                @"Xrm\.App",
+                @"Xrm\.Device",
+                @"Xrm\.Encoding",
+                @"Xrm\.Panel",
+                @"Xrm\.Process",
+                @"Xrm\.Utility\.openEntityForm",
+                @"Xrm\.WebApi\.retrieveRecord",
+                @"Xrm\.WebApi\.updateRecord",
+                @"Xrm\.WebApi\.createRecord",
+                @"Xrm\.WebApi\.deleteRecord"
+            };
+
+            foreach (var pattern in patterns)
+            {
+                var matches = Regex.Matches(script, pattern);
+                if (matches.Count > 0)
+                {
+                    found.Add(pattern);
+                }
+            }
+
+            // Optionally, log or output the found events/actions
+            if (found.Count > 0)
+            {
+                Console.WriteLine("Dataverse API events/actions found in script:");
+                foreach (var evt in found)
+                {
+                    Console.WriteLine($" - {evt}");
+                }
+            }
+
+            return found;
+        }
+
+
         private void LogSchema()
         {
             RetrieveAllEntitiesRequest request = null;
@@ -280,9 +445,9 @@ namespace DataIngestor
                     .OrderBy(e => e.LogicalName)
                     .ToList();
 
-                if (response != null)
+                if (results != null)
                 {
-                    foreach (EntityMetadata entity in response?.EntityMetadata)
+                    foreach (EntityMetadata entity in results)
                     {
                         foreach (AttributeMetadata attribute in entity.Attributes)
                         { 
@@ -298,6 +463,28 @@ namespace DataIngestor
                             //ddMeta.IsCalculated = attribute.IsCalculated.Value ?? false;
                             ddMeta.LangCode = attribute.DisplayName.UserLocalizedLabel?.LanguageCode ?? 0;
                             ddMeta.ModifiedOn = attribute.ModifiedOn ?? DateTime.MinValue;
+                            ddMeta.AttributeOf = entity.MetadataId.ToString(); // Assuming AttributeOf is the Entity's MetadataId
+                            ddMeta.AttributeType = attribute.AttributeType.Value.ToString();
+                            //ddMeta.AttributeTypeName = attribute.AttributeTypeName ?? string.Empty;
+                            //ddMeta.AutoNumberFormat = (attribute as AutoNumberAttributeMetadata)?.Format ?? string.Empty;
+                            ddMeta.CanBeSecuredForCreate = attribute.CanBeSecuredForCreate;
+                            ddMeta.CanBeSecuredForRead = attribute.CanBeSecuredForRead;
+                            ddMeta.CanBeSecuredForUpdate = attribute.CanBeSecuredForUpdate;
+                            //ddMeta.CanModifiedAdditionalSettings = attribute.CanModifyAdditionalSettings;
+                            ddMeta.ColumnNumber = attribute.ColumnNumber;
+                            ddMeta.CreatedOn = attribute.CreatedOn ?? DateTime.MinValue;
+                            ddMeta.DeprecatedVersion = attribute.DeprecatedVersion ?? string.Empty;
+                            ddMeta.DisplayName = attribute.DisplayName.UserLocalizedLabel?.Label ?? string.Empty;
+                            ddMeta.EntityLogicalName = entity.LogicalName;
+                            ddMeta.ExtensionData = attribute.ExtensionData?.ToString() ?? string.Empty;
+                            ddMeta.ExternalName = attribute.ExternalName ?? string.Empty;
+                            ddMeta.HasChanged = attribute.HasChanged ?? false;
+                            ddMeta.InheritsFrom = attribute.InheritsFrom?.ToString() ?? string.Empty;
+                            ddMeta.IntroducedVersion = attribute.IntroducedVersion ?? string.Empty;
+                            //ddMeta.IsAuditEnabled = attribute.IsAuditEnabled ?? false;
+                            ddMeta.IsCustomAttribute = attribute.IsCustomAttribute ?? false;
+                            ddMeta.IsCustomizable = attribute.IsCustomizable?.Value ?? false;
+
 
 
                             switch (attribute.AttributeType)
@@ -439,11 +626,10 @@ namespace DataIngestor
                                 //    break;
 
                                 default:
-                                    //sb.Append("\t\t\t\t\t\t\t");
                                     break;
                             }
 
-                            _ddSolutions["DefaultSolution"].AttributeMetadata.Add(ddMeta);
+                            _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
                         }
                     }
 
@@ -465,14 +651,16 @@ namespace DataIngestor
                 response = null;
                 request = null;
             }
-
         }
-
 
         private void SaveToDataverse()
         {
             // Use ExecuteMultipleRequest for batch saving to Dataverse
             var batchSize = 1000; // Adjust as needed for performance and Dataverse limits
+
+            // Track alternate key values to detect duplicates in the current batch
+            var seenAltKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var ddSolution in _ddSolutions.Values)
             {
                 if (ddSolution.AttributeMetadata == null || ddSolution.AttributeMetadata.Count == 0)
@@ -481,8 +669,24 @@ namespace DataIngestor
                 var requests = new List<OrganizationRequest>();
                 foreach (var attrMeta in ddSolution.AttributeMetadata)
                 {
+                    // Construct the alternate key value
+                    var altKey = attrMeta.Table + "-" + attrMeta.ColumnLogical;
+
+                    if (string.IsNullOrWhiteSpace(altKey))
+                    {
+                        Console.WriteLine("Skipping record with null/empty alternate key.");
+                        continue;
+                    }
+
+                    // Check for duplicate alternate key in the current batch
+                    if (!seenAltKeys.Add(altKey))
+                    {
+                        Console.WriteLine($"Duplicate alternate key detected in batch: '{altKey}'. Skipping this record.");
+                        continue;
+                    }
+
                     var entity = new Entity("ljr_datadictionaryattributemetadata");
-                    entity["ljr_datadictionaryattributemetadata1"] = attrMeta.Table + "-" + attrMeta.ColumnSchema;
+                    entity["ljr_datadictionaryattributemetadata1"] = altKey;
                     entity["ljr_table"] = attrMeta.Table;
                     entity["ljr_columndisplay"] = attrMeta.ColumnDisplay;
                     entity["ljr_columnlogical"] = attrMeta.ColumnLogical;
@@ -494,6 +698,25 @@ namespace DataIngestor
                     entity["ljr_iscalculated"] = attrMeta.IsCalculated;
                     entity["ljr_isformula"] = attrMeta.IsFormula;
                     entity["ljr_lookupto"] = attrMeta.LookupTo;
+                    entity["ljr_metadatamodifiedon"] = attrMeta.ModifiedOn != DateTime.MinValue ? (object)attrMeta.ModifiedOn : null;
+                    entity["ljr_attributeof"] = attrMeta.AttributeOf;
+                    entity["ljr_attributetype"] = attrMeta.AttributeType;
+                    entity["ljr_attributetypename"] = attrMeta.AttributeTypeName;
+                    entity["ljr_autonumberformat"] = attrMeta.AutoNumberFormat;
+                    entity["ljr_canbesecuredforcreate"] = attrMeta.CanBeSecuredForCreate ?? false;
+                    entity["ljr_canbesecuredforread"] = attrMeta.CanBeSecuredForRead ?? false;
+                    entity["ljr_canbesecuredforupdate"] = attrMeta.CanBeSecuredForUpdate ?? false;
+                    entity["ljr_canmodifiedadditionalsettings"] = attrMeta.CanModifiedAdditionalSettings ?? false;
+                    entity["ljr_columnnumber"] = attrMeta.ColumnNumber ?? 0;
+                    entity["ljr_deprecatedversion"] = attrMeta.DeprecatedVersion;
+                    entity["ljr_displayname"] = attrMeta.DisplayName;
+                    entity["ljr_entitylogicalname"] = attrMeta.EntityLogicalName;
+                    entity["ljr_externalname"] = attrMeta.ExternalName;
+                    entity["ljr_haschanged"] = attrMeta.HasChanged ?? false;
+                    entity["ljr_inheritsfrom"] = attrMeta.InheritsFrom;
+                    entity["ljr_introducedversion"] = attrMeta.IntroducedVersion;
+                    entity["ljr_isauditenabled"] = attrMeta.IsAuditEnabled ?? false;
+                    entity["ljr_metadatacreatedon"] = attrMeta.CreatedOn != DateTime.MinValue ? (object)attrMeta.CreatedOn : null;
 
                     // Only add MaxValue, MinValue, Precision, MaxLength if not null
                     if (attrMeta.MaxValue != null)
@@ -513,14 +736,53 @@ namespace DataIngestor
                     entity["ljr_description"] = attrMeta.Description;
                     entity["ljr_langcode"] = attrMeta.LangCode;
 
-                    var createRequest = new CreateRequest { Target = entity };
-                    requests.Add(createRequest);
+                    // --- Check if record exists in Dataverse by alternate key ---
+                    bool exists = false;
+                    try
+                    {
+                        var query = new QueryExpression("ljr_datadictionaryattributemetadata")
+                        {
+                            ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
+                            Criteria = new FilterExpression
+                            {
+                                FilterOperator = LogicalOperator.And
+                            }
+                        };
+                        query.Criteria.AddCondition("ljr_datadictionaryattributemetadata1", ConditionOperator.Equal, altKey);
+
+                        var result = _service.RetrieveMultiple(query);
+                        if (result.Entities.Count > 0)
+                        {
+                            exists = true;
+                            entity.Id = result.Entities[0].Id; // Set the ID for update
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error checking existence for alternate key '{altKey}': {ex.Message}");
+                    }
+
+                    if (exists)
+                    {
+                        // Use UpdateRequest if record exists
+                        var updateRequest = new UpdateRequest { Target = entity };
+                        requests.Add(updateRequest);
+                        Console.WriteLine($"UpdateRequest queued for alternate key: {altKey}");
+                    }
+                    else
+                    {
+                        // Use CreateRequest if record does not exist
+                        var createRequest = new CreateRequest { Target = entity };
+                        requests.Add(createRequest);
+                        Console.WriteLine($"CreateRequest queued for alternate key: {altKey}");
+                    }
 
                     // Send batch if batchSize reached
                     if (requests.Count == batchSize)
                     {
                         ExecuteBatch(requests);
                         requests.Clear();
+                        seenAltKeys.Clear(); // Clear for next batch
                     }
                 }
 
@@ -555,25 +817,39 @@ namespace DataIngestor
                 for (int i = 0; i < response.Responses.Count; i++)
                 {
                     var item = response.Responses[i];
+                    var req = executeMultipleRequest.Requests[item.RequestIndex];
+                    Entity entity = null;
+                    string altKey = null;
+                    if (req is UpdateRequest updateReq)
+                    {
+                        entity = updateReq.Target as Entity;
+                        altKey = entity?["ljr_datadictionaryattributemetadata1"] as string;
+                    }
+                    else if (req is CreateRequest createReq)
+                    {
+                        entity = createReq.Target as Entity;
+                        altKey = entity?["ljr_datadictionaryattributemetadata1"] as string;
+                    }
+
                     if (item.Fault != null)
                     {
-                        Console.WriteLine($"Failed to save attribute metadata in batch: {item.Fault.Message}");
+                        Console.WriteLine($"Failed to save attribute metadata (Alternate Key: '{altKey}'): {item.Fault.Message}");
+                        if (item.Fault.InnerFault != null)
+                        {
+                            Console.WriteLine("Inner Fault: " + item.Fault.InnerFault.Message);
+                        }
                     }
                     else
                     {
-                        var createReq = executeMultipleRequest.Requests[item.RequestIndex] as CreateRequest;
-                        var entity = createReq?.Target as Entity;
-                        var name = entity?["ljr_datadictionaryattributemetadata1"];
-                        Console.WriteLine($"Saved attribute metadata: {name}");
+                        Console.WriteLine($"Saved attribute metadata: {altKey}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Batch save failed: {ex.Message}");
+                Console.WriteLine("Batch save failed: " + ex.ToString());
             }
         }
-
 
         #endregion
 

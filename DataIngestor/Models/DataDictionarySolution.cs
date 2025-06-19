@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DataIngestor.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,9 @@ namespace DataDictionary.Models
 {
     public class DataDictionarySolution
     {
+
+        public List<DataDictionaryWebResource> WebResources { get; set; } = new List<DataDictionaryWebResource>();
+
 
         public List<DataDictionaryAttributeMetadata> AttributeMetadata { get; set; } = new List<DataDictionaryAttributeMetadata>();
 

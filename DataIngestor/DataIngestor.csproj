@@ -207,6 +207,7 @@
     <Compile Include="Models\DataDictionaryEntity.cs" />
     <Compile Include="Models\DataDictionarySolution.cs" />
     <Compile Include="Models\DataDictionarySolutionComponent.cs" />
+    <Compile Include="Models\DataDictionaryWebResource.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
