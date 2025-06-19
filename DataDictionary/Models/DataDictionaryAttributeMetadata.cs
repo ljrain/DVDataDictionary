@@ -5,7 +5,6 @@ namespace DataDictionary.Models
     public class DataDictionaryAttributeMetadata
     {
         public string Table { get; set; }
-        public DateTime ModifiedOn { get; set; }
         public string ColumnDisplay { get; set; }
         public string ColumnLogical { get; set; }
         public string ColumnSchema { get; set; }

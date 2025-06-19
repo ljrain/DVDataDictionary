@@ -70,10 +70,10 @@ namespace DataDictionary
                 {
                     DataDictionarySolution ddSolution = new DataDictionarySolution
                     {
-                        Name = solution.GetAttributeValue<string>("uniquename"),
+                        UniqueName = solution.GetAttributeValue<string>("uniquename"),
                         SolutionId = solution.GetAttributeValue<Guid>("solutionid").ToString()
                     };
-                    _solutions.Add(solutionName, ddSolution);
+                    _solutions.Add(ddSolution.UniqueName, ddSolution); // updated to use UniqueName
                 }
 
             }
@@ -106,16 +106,17 @@ namespace DataDictionary
                 {
                     DataDictionarySolutionComponent ddComponent = new DataDictionarySolutionComponent
                     {
-                        ComponentType = component.GetAttributeValue<string>("componenttype"),
+                        //ComponentType = component.GetAttributeValue<string>("componenttype"),
                         ComponentTypeName = component.GetAttributeValue<string>("componenttypename"),
                         IsMetadata = component.GetAttributeValue<bool>("ismetadata"),
                         IsMetadataName = component.GetAttributeValue<string>("ismetadataname"),
-                        RootComponentBehavior = component.GetAttributeValue<Guid>("rootcomponentbehavior"),
+                        //RootComponentBehavior = component.GetAttributeValue<Guid>("rootcomponentbehavior"),
                         RootComponentBehaviorName = component.GetAttributeValue<string>("rootcomponentbehaviorname"),
                         RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
                     };
                     ddSolution.AddComponent(ddComponent);
                 }
+                //ddSolution.ComponentCount++; // incrementing component count after adding a component
             }
         }
 
@@ -128,7 +129,7 @@ namespace DataDictionary
             #region "get all entities in the solution based on the components returned"
             foreach (var solution in _solutions.Values.Where(s => s.SolutionId == solutionId))
             {
-                _tracingService?.Trace("Processing solution: {0}", solution.Name);
+                _tracingService?.Trace("Processing solution: {0}", solution.UniqueName);
                 var entityQuery = new QueryExpression("entity")
                 {
                     ColumnSet = new ColumnSet("entityid", "entitysetname", "basetablename", "collectionname", "componentstate", "componentstatename", "extensiontablename", "externalcollectionname", "externalname", "isactivity", "isactivityname", "logicalcollectionname", "logicalname", "objecttypecode", "originallocalizedcollectionname", "originallocalizedname", "overwritetime", "parentcontrollingattributename", "physicalname", "reportviewname"),

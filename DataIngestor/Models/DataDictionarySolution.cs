@@ -12,7 +12,6 @@ namespace DataDictionary.Models
 
         public List<DataDictionaryAttributeMetadata> AttributeMetadata { get; set; } = new List<DataDictionaryAttributeMetadata>();
 
-
         public string FriendlyName { get; set; }
         public string SolutionId { get; set; }
         public string UniqueName { get; set; }
@@ -57,10 +56,12 @@ namespace DataDictionary.Models
                 { 
                     Console.WriteLine($"Entity {ddEntity.EntityId} does not match AttributeOf {ddAttr.AttributeOf}");
                 }
-
             }
+        }
 
-
+        public string[] GetLogicalEntitiesFromSolutions()
+        {
+            return Entities.Select(e => e.LogicalName).ToArray();
         }
 
     }

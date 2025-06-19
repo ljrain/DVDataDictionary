@@ -1,19 +1,15 @@
 ﻿using DataDictionary.Models;
 using Microsoft.Crm.Sdk.Messages;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Organization;
 using Microsoft.Xrm.Sdk.Query;
-using Microsoft.Xrm.Tooling.Connector;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace DataIngestor
@@ -29,7 +25,7 @@ namespace DataIngestor
 
         private IOrganizationService _service;
         private Dictionary<string, DataDictionarySolution> _ddSolutions = new Dictionary<string, DataDictionarySolution>();
-        private List<string> _allowedLogicalNames = new List<string>();
+
 
         #endregion
 
@@ -39,29 +35,24 @@ namespace DataIngestor
         /// </summary>
         /// <remarks>This method will process a string array of solution unique names to build a data dictionary.</remarks>
         /// <param name="solutionUniqueNames">An array of unique names representing the solutions to be processed.  Each name must be non-null and
-        public void ProcessSolutions(string[] solutionUniqueNames)
+        /// non-empty.</param>
+        public void ProcessSolutions()
         {
-            Stopwatch timerGlobal = new Stopwatch(); // Replace Timer with Stopwatch
-            timerGlobal.Start();
-            GetSolutions(solutionUniqueNames);
-            ProcessEntities();
-            foreach (var ddSolution in _ddSolutions.Values)
+            Console.WriteLine("Processing Solutions...");
+            _ddSolutions.Add("SampleSolution", new DataDictionarySolution
             {
-                Console.WriteLine($"Processing Solution: {ddSolution.UniqueName}");
-                GetComponentsInSolution(ddSolution);
-                
+                FriendlyName = "Sample Solution",
+                SolutionId = Guid.NewGuid().ToString(),
+                UniqueName = "sample_solution"
+            });
 
-            }
-            Console.WriteLine(timerGlobal.Elapsed.ToString());
-
-            _ddSolutions["SampleSolution"].GetLogicalEntitiesFromSolutions();
 
             LogSchema();
-            Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
             SaveToDataverse();
 
-            timerGlobal.Stop(); // Stop the timer
-            Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
+
+
+            Console.WriteLine("Processing Complete.");
         }
 
 
@@ -72,7 +63,7 @@ namespace DataIngestor
         /// A dictionary of DataDictionarySolution objects is built, keyed by the unique name of the solution.
         /// </summary>
         /// <param name="solutionNames">String array of unique names of solutions to process.</param>
-        private void GetSolutions(string[] solutionNames)
+        public void GetSolutions(string[] solutionNames)
         {
             foreach (var solutionName in solutionNames.Where(n => !string.IsNullOrWhiteSpace(n)))
             {
@@ -107,7 +98,7 @@ namespace DataIngestor
         }
 
 
-        private void GetComponentsInSolution(DataDictionarySolution ddSolution)
+        public void GetComponentsInSolution(DataDictionarySolution ddSolution)
         {
             // Query solutioncomponent for forms in the solution
             var componentQuery = new QueryExpression("solutioncomponent")
@@ -134,8 +125,6 @@ namespace DataIngestor
                     RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
                 };
                 ddSolution.AddComponent(ddComponent);
-//                if (ddComponent.ComponentType == 1)
-                    
 
                 Console.WriteLine($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Object Id: {ddComponent.ObjectId}");
             }
@@ -181,7 +170,6 @@ namespace DataIngestor
                                 LogicalName = entity.GetAttributeValue<string>("logicalname")
                             };
                             ddSolution.AddEntity(ddEntity);
-                            _allowedLogicalNames.Add(ddEntity.LogicalName); // Add logical name to allowed list
 
                             Console.WriteLine($"Entity: {ddEntity.Name}, Object Type Code: {ddEntity.ObjectTypeCode}, Entity Set Name: {ddEntity.EntitySetName}");
                         }
@@ -189,8 +177,9 @@ namespace DataIngestor
                 }
             }
         }
+        #endregion
 
-        private async Task ProcessAttributesAsync()
+        public async Task ProcessAttributesAsync()
         {
             foreach (DataDictionarySolution ddSolution in _ddSolutions.Values)
             {
@@ -238,54 +227,35 @@ namespace DataIngestor
         }
 
 
-        private void LogSchema()
+        public void LogSchema()
         {
             RetrieveAllEntitiesRequest request = null;
             RetrieveAllEntitiesResponse response = null;
+            //StringBuilder sb = null;
             PicklistAttributeMetadata PicklistAM = null;
             OptionMetadata om = null;
+            //int tabDepth = 0;
+            //int tabIndex = 0;
             string FormulaDefinition = null;
-
-            // create Default solution to hold metadata
-            if (!_ddSolutions.ContainsKey("Default"))
-            {
-                _ddSolutions.Add("Default", new DataDictionarySolution
-                {
-                    FriendlyName = "Default Solution",
-                    UniqueName = "Default"
-                });
-            }
 
             try
             {
                 Console.Write("Retrieving Metadata .");
                 request = new RetrieveAllEntitiesRequest()
                 {
-                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes | EntityFilters.Relationships,
+                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes,
                     RetrieveAsIfPublished = false,
                 };
                 response = (RetrieveAllEntitiesResponse)_service.Execute(request);
-
-                // Pseudocode plan:
-                // 1. Accept a list of allowed logical names (e.g., List<string> allowedLogicalNames or string[] allowedLogicalNames).
-                // 2. Filter the EntityMetadata results so that only those with LogicalName in the allowed list are included.
-                // 3. Apply this filter in the LINQ query where results are built.
-
-                // Example: Add a parameter to LogSchema or make allowedLogicalNames available in scope
-                // For demonstration, assume a variable allowedLogicalNames is available (e.g., string[] allowedLogicalNames).
-
-                IEnumerable<EntityMetadata> results = response.EntityMetadata
-                    .Where(e => e.IsCustomizable != null
-                        && _allowedLogicalNames.Contains(e.LogicalName))
-                    .OrderBy(e => e.LogicalName)
-                    .ToList();
 
                 if (response != null)
                 {
                     foreach (EntityMetadata entity in response?.EntityMetadata)
                     {
                         foreach (AttributeMetadata attribute in entity.Attributes)
-                        { 
+                        {   //                0                             6
+                            //sb.AppendFormat("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}", entity.LogicalName, (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label), attribute.LogicalName, attribute.SchemaName, attribute.AttributeType.Value.ToString(), attribute.IsCustomAttribute, attribute.IsAuditEnabled.Value);
+
                             DataDictionaryAttributeMetadata ddMeta = new DataDictionaryAttributeMetadata();
                             ddMeta.Table = entity.LogicalName;
                             ddMeta.ColumnDisplay = (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label);
@@ -297,8 +267,6 @@ namespace DataIngestor
                             ddMeta.AuditEnabled = attribute.IsAuditEnabled.Value;
                             //ddMeta.IsCalculated = attribute.IsCalculated.Value ?? false;
                             ddMeta.LangCode = attribute.DisplayName.UserLocalizedLabel?.LanguageCode ?? 0;
-                            ddMeta.ModifiedOn = attribute.ModifiedOn ?? DateTime.MinValue;
-
 
                             switch (attribute.AttributeType)
                             {
@@ -306,6 +274,7 @@ namespace DataIngestor
                                 //    break;
 
                                 case AttributeTypeCode.BigInt:
+                                    //ddMeta.DataType = "BigInt";
                                     ddMeta.MinValue = (Int64?)((BigIntAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((BigIntAttributeMetadata)attribute).MaxValue;
                                     break;
@@ -319,9 +288,13 @@ namespace DataIngestor
                                 //    break;
 
                                 case AttributeTypeCode.DateTime:
-
+                                    //ddMeta.DataType = "DateTime";
                                     ddMeta.FormulaDefinition = ((DateTimeAttributeMetadata)attribute).FormulaDefinition;
                                     FormulaDefinition = ((DateTimeAttributeMetadata)attribute).FormulaDefinition;
+                                    //sb.AppendFormat("\t{0}\t{1}\t\t\t\t\t"
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
+                                    //    );
                                     break;
 
                                 case AttributeTypeCode.Decimal:
@@ -330,12 +303,19 @@ namespace DataIngestor
                                     ddMeta.MinValue = (Int64?)((DecimalAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((DecimalAttributeMetadata)attribute).MaxValue;
                                     ddMeta.Precision = ((DecimalAttributeMetadata)attribute).Precision;
+                                    //sb.AppendFormat("\t{0}\t{1}\t\t\t{2}\t{3}\t{4}"
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
+                                    //    , ((DecimalAttributeMetadata)attribute).MinValue
+                                    //    , ((DecimalAttributeMetadata)attribute).MaxValue
+                                    //    , ((DecimalAttributeMetadata)attribute).Precision);
                                     break;
 
                                 case AttributeTypeCode.Double:
                                     ddMeta.DataType = "Double";
                                     ddMeta.MinValue = (Int64?)((DoubleAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((DoubleAttributeMetadata)attribute).MaxValue;
+                                    //sb.AppendFormat("\t\t\t{0}\t{1}\t", ((DoubleAttributeMetadata)attribute).MinValue, ((DoubleAttributeMetadata)attribute).MaxValue);
                                     break;
 
                                 //case AttributeTypeCode.EntityName:
@@ -343,20 +323,38 @@ namespace DataIngestor
                                 //    break;
 
                                 case AttributeTypeCode.Integer:
+                                    ddMeta.DataType = "Integer";
                                     FormulaDefinition = ((IntegerAttributeMetadata)attribute).FormulaDefinition;
                                     ddMeta.MinValue = (Int64?)((IntegerAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((IntegerAttributeMetadata)attribute).MaxValue;
+                                    //sb.AppendFormat("\t{0}\t{1}\t\t\t{2}\t{3}\t"
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
+                                    //    , ((IntegerAttributeMetadata)attribute).MinValue
+                                    //    , ((IntegerAttributeMetadata)attribute).MaxValue
+                                    //    );
                                     break;
 
                                 case AttributeTypeCode.Lookup:
-                                    ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
-                                        ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
-                                        : null;
+                                    ddMeta.DataType = "Lookup";
+                                    // Fix for CS1061: 'LookupAttributeMetadata' does not contain a definition for 'TargetEntityType'
+                                    // The error indicates that 'TargetEntityType' is not a valid property of 'LookupAttributeMetadata'.
+                                    // Based on the provided type signature, 'LookupAttributeMetadata' has a 'Targets' property which is an array of strings.
+                                    // Replace 'TargetEntityType' with 'Targets' and adjust the code accordingly.
 
                                     ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
                                         ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
                                         : null;
+                                    // Fix for CS1061: 'LookupAttributeMetadata' does not contain a definition for 'TargetEntityType'
+                                    // The error indicates that 'TargetEntityType' is not a valid property of 'LookupAttributeMetadata'.
+                                    // Based on the provided type signature, 'LookupAttributeMetadata' has a 'Targets' property which is an array of strings.
+                                    // Replace 'TargetEntityType' with 'Targets' and adjust the code accordingly.
 
+                                    ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
+                                        ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
+                                        : null;
+                                    //ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).TargetEntityType;
+                                    //sb.AppendFormat("\t\t\t{0}\t\t\t\t", string.Join(",", ((LookupAttributeMetadata)attribute).Targets));
                                     break;
 
                                 //case AttributeTypeCode.ManagedProperty:
@@ -366,6 +364,7 @@ namespace DataIngestor
                                 case AttributeTypeCode.Memo:
                                     ddMeta.DataType = "Memo";
                                     ddMeta.MaxLength = ((MemoAttributeMetadata)attribute).MaxLength;
+                                    //sb.AppendFormat("\t\t\t\t{0}\t\t\t", ((MemoAttributeMetadata)attribute).MaxLength);
                                     break;
 
                                 case AttributeTypeCode.Money:
@@ -373,6 +372,12 @@ namespace DataIngestor
                                     FormulaDefinition = ((MoneyAttributeMetadata)attribute).FormulaDefinition;
                                     ddMeta.MinValue = (Int64?)((MoneyAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((MoneyAttributeMetadata)attribute).MaxValue;
+                                    ////sb.AppendFormat("\t{0}\t{1}\t\t\t{2}\t{3}\t"
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
+                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
+                                    //    , ((MoneyAttributeMetadata)attribute).MinValue
+                                    //    , ((MoneyAttributeMetadata)attribute).MaxValue
+                                    //    );
                                     break;
 
                                 //case AttributeTypeCode.Owner:
@@ -386,7 +391,16 @@ namespace DataIngestor
                                 case AttributeTypeCode.Picklist:
                                     ddMeta.DataType = "Picklist";
                                     FormulaDefinition = ((PicklistAttributeMetadata)attribute).FormulaDefinition;
+                                    // sb.AppendFormat("\t\t\t\t", ((PicklistAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
+                                    //sb.AppendFormat("\t{0}\t{1}\t\t\t\t\t"
+                                    //, String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
+                                    //, String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
+                                    //);
+                                    //tabDepth = 17;
+                                    //tabIndex = 14;
                                     PicklistAM = (PicklistAttributeMetadata)attribute;
+                                    //if (!String.IsNullOrEmpty(PicklistAM.OptionSet.Name)) { sb.AppendFormat("\t{0}", PicklistAM.OptionSet.Name); }
+                                    //else { sb.Append("\t"); }
 
                                     switch (PicklistAM.OptionSet.Options.Count)
                                     {
@@ -395,7 +409,7 @@ namespace DataIngestor
                                             break;
                                         case 1:
                                             om = PicklistAM.OptionSet.Options[0];
-                                            
+                                            //sb.AppendFormat("\t{0}\t{1}\t{2}", om.Value, om.Label.UserLocalizedLabel.Label, om.Label.UserLocalizedLabel.LanguageCode);
                                             break;
                                         default:
                                             om = PicklistAM.OptionSet.Options[0];
@@ -443,10 +457,12 @@ namespace DataIngestor
                                     break;
                             }
 
-                            _ddSolutions["DefaultSolution"].AttributeMetadata.Add(ddMeta);
+                            //sb.AppendLine();
+                            _ddSolutions["SampleSolution"].AttributeMetadata.Add(ddMeta);
                         }
                     }
-
+                    //string outputfilename = string.Format("{0}_{1}_{2}_{3}_schema.txt", DateTime.Now.ToString("yyyyMMdd"), DateTime.Now.ToString("t").Replace(":", ""), connection.ConnectedOrgUniqueName, connection.ConnectedOrgVersion.ToString(3));
+                    //File.WriteAllText(string.Format("{0}\\{1}", Directory.GetCurrentDirectory(), outputfilename), sb.ToString());
                 }
                 else
                 {
@@ -460,8 +476,11 @@ namespace DataIngestor
             }
             finally
             {
+                //tabIndex = 0;
+                //tabDepth = 0;
                 om = null;
                 PicklistAM = null;
+                //sb = null;
                 response = null;
                 request = null;
             }
@@ -469,10 +488,11 @@ namespace DataIngestor
         }
 
 
-        private void SaveToDataverse()
+
+        public void SaveToDataverse()
         {
             // Use ExecuteMultipleRequest for batch saving to Dataverse
-            var batchSize = 1000; // Adjust as needed for performance and Dataverse limits
+            var batchSize = 2000; // Adjust as needed for performance and Dataverse limits
             foreach (var ddSolution in _ddSolutions.Values)
             {
                 if (ddSolution.AttributeMetadata == null || ddSolution.AttributeMetadata.Count == 0)
@@ -494,6 +514,7 @@ namespace DataIngestor
                     entity["ljr_iscalculated"] = attrMeta.IsCalculated;
                     entity["ljr_isformula"] = attrMeta.IsFormula;
                     entity["ljr_lookupto"] = attrMeta.LookupTo;
+                    //entity["ljr_modifiedon"] = attrMeta
 
                     // Only add MaxValue, MinValue, Precision, MaxLength if not null
                     if (attrMeta.MaxValue != null)
@@ -573,9 +594,5 @@ namespace DataIngestor
                 Console.WriteLine($"Batch save failed: {ex.Message}");
             }
         }
-
-
-        #endregion
-
     }
 }
