@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DataDictionary.Models;
 
-namespace DataIngestor.Models
+namespace DataDictionary.Models
 {
     public class DataDictionaryWebResource
     {

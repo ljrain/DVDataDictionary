@@ -14,6 +14,16 @@ namespace DataIngestor
 
         static void Main(string[] args)
         {
+            // Check if test mode is requested
+            if (args.Length > 0 && args[0].ToLower() == "test")
+            {
+                Console.WriteLine("Running in test mode...");
+                JavaScriptParsingTests.RunAllTests();
+                Console.WriteLine("\nPress any key to exit...");
+                Console.ReadKey();
+                return;
+            }
+
             string crmUrl = "https://loudev3.crm.dynamics.com"; // Changed public to local scope
             string clientId = "88b9ffc2-7bff-4a5b-8c28-9696906a9d63";
             string clientSecret = "yFD8Q~feXPu58g9_LHWlkwiy1fHiinbvu~xdmb0u";

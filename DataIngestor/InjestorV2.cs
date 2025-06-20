@@ -447,19 +447,19 @@ namespace DataIngestor
             // Pattern definitions for different types of field modifications
             var patterns = new[]
             {
-                // Visibility modifications
+                // Visibility modifications - both formContext and Xrm.Page patterns
                 new {
                     Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setVisible\s*\(\s*(true|false)\s*\)", RegexOptions.IgnoreCase),
                     Type = JavaScriptModificationType.Visibility,
                     ValueGroup = 2
                 },
-                // Required level modifications
+                // Required level modifications - supports "required", "recommended", "none"
                 new {
                     Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getAttribute\(\s*[""']([^""']+)[""']\s*\)\.setRequiredLevel\s*\(\s*[""']([^""']+)[""']\s*\)", RegexOptions.IgnoreCase),
                     Type = JavaScriptModificationType.RequiredLevel,
                     ValueGroup = 2
                 },
-                // Default value assignments
+                // Default value assignments - handles various value types
                 new {
                     Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getAttribute\(\s*[""']([^""']+)[""']\s*\)\.setValue\s*\(\s*([^)]+)\s*\)", RegexOptions.IgnoreCase),
                     Type = JavaScriptModificationType.DefaultValue,
@@ -479,10 +479,28 @@ namespace DataIngestor
                 }
             };
 
+            // Additional patterns for more advanced scenarios
+            var advancedPatterns = new[]
+            {
+                // Conditional visibility - e.g., setVisible(someCondition)
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setVisible\s*\(\s*([^)]+)\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.Visibility,
+                    ValueGroup = 2
+                },
+                // Variable-based setValue
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getAttribute\(\s*[""']([^""']+)[""']\s*\)\.setValue\s*\(\s*(\w+)\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.DefaultValue,
+                    ValueGroup = 2
+                }
+            };
+
             for (int lineIndex = 0; lineIndex < scriptLines.Length; lineIndex++)
             {
                 var line = scriptLines[lineIndex];
                 
+                // Process primary patterns first
                 foreach (var pattern in patterns)
                 {
                     var matches = pattern.Regex.Matches(line);
@@ -505,6 +523,38 @@ namespace DataIngestor
                             modifications.Add(modification);
 
                             Console.WriteLine($"Found {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
+                        }
+                    }
+                }
+
+                // Process advanced patterns only if no primary patterns matched
+                bool foundInPrimary = patterns.Any(p => p.Regex.IsMatch(line));
+                if (!foundInPrimary)
+                {
+                    foreach (var pattern in advancedPatterns)
+                    {
+                        var matches = pattern.Regex.Matches(line);
+                        foreach (Match match in matches)
+                        {
+                            if (match.Groups.Count > pattern.ValueGroup)
+                            {
+                                var modification = new DataDictionaryJavaScriptFieldModification
+                                {
+                                    FieldName = match.Groups[1].Value,
+                                    WebResourceId = webResourceId,
+                                    WebResourceName = webResourceName,
+                                    ModificationType = pattern.Type,
+                                    ModificationValue = match.Groups[pattern.ValueGroup].Value,
+                                    JavaScriptCode = line.Trim(),
+                                    LineNumber = lineIndex + 1,
+                                    Notes = "Advanced pattern detected - may need manual verification",
+                                    ParsedOn = DateTime.UtcNow
+                                };
+
+                                modifications.Add(modification);
+
+                                Console.WriteLine($"Found advanced {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
+                            }
                         }
                     }
                 }
