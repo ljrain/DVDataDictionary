@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace DataDictionary.Models
 {
@@ -70,5 +71,35 @@ namespace DataDictionary.Models
         public string MetadataId { get; set; }
         public string RequiredLevel { get; set; }
         public string SchemaName { get; set; }
+
+        /// <summary>
+        /// Indicates if this field is hidden by JavaScript
+        /// </summary>
+        public bool? IsHiddenByScript { get; set; }
+
+        /// <summary>
+        /// Indicates if this field is marked required by JavaScript
+        /// </summary>
+        public bool? IsRequiredByScript { get; set; }
+
+        /// <summary>
+        /// Indicates if this field has a default value set by JavaScript
+        /// </summary>
+        public bool? HasDefaultValueByScript { get; set; }
+
+        /// <summary>
+        /// The default value set by JavaScript (if any)
+        /// </summary>
+        public string ScriptDefaultValue { get; set; }
+
+        /// <summary>
+        /// List of web resources that modify this field
+        /// </summary>
+        public string ModifyingWebResources { get; set; }
+
+        /// <summary>
+        /// JavaScript field modifications related to this attribute
+        /// </summary>
+        public List<DataDictionaryJavaScriptFieldModification> JavaScriptFieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
     }
 }
