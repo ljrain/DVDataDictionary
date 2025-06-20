@@ -80,8 +80,8 @@ namespace DataIngestor
                     webRes.Content = javascript;
 
                     _ddSolutions["SampleSolution"].WebResources.Add(webRes);
-                    List<string> parsedJavaScript = ParseJavaScript(webRes.Content); // Parse the JavaScript content for Dataverse API events/actions
-                    Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions from Web Resource: {webRes.DisplayName}");
+                    List<string> parsedJavaScript = ParseJavaScript(webRes.Content, webRes); // Parse the JavaScript content for Dataverse API events/actions and field modifications
+                    Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions and {webRes.FieldModifications.Count} field modifications from Web Resource: {webRes.DisplayName}");
                 }
             }
             else
@@ -91,6 +91,7 @@ namespace DataIngestor
             #endregion 
 
             SaveJavascriptToDataverse(); // Save web resources to Dataverse
+            CorrelateJavaScriptModificationsWithAttributes(); // Correlate JS modifications with attribute metadata
             LogSchema();
             Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
             SaveToDataverse();
@@ -342,11 +343,12 @@ namespace DataIngestor
 
 
         /// <summary>
-        /// Parses a JavaScript string and extracts Dataverse API events/actions and hidden fields.
+        /// Parses a JavaScript string and extracts Dataverse API events/actions and field modifications.
         /// </summary>
         /// <param name="script">The JavaScript code as a string.</param>
-        /// <returns>List of found Dataverse API events/actions and hidden fields.</returns>
-        private List<string> ParseJavaScript(string script)
+        /// <param name="webResource">The web resource being parsed.</param>
+        /// <returns>List of found Dataverse API events/actions and hidden fields (legacy format).</returns>
+        private List<string> ParseJavaScript(string script, DataDictionaryWebResource webResource = null)
         {
             var found = new List<string>();
             if (string.IsNullOrWhiteSpace(script))
@@ -389,19 +391,19 @@ namespace DataIngestor
                 }
             }
 
-            // --- Find hidden fields ---
-            // Looks for: formContext.getControl("fieldname").setVisible(false);
-            var hiddenFieldRegex = new Regex(@"formContext\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setVisible\s*\(\s*false\s*\)", RegexOptions.IgnoreCase);
-            var hiddenMatches = hiddenFieldRegex.Matches(script);
-            var hiddenFields = new List<string>();
-            foreach (Match match in hiddenMatches)
+            // Parse field modifications if web resource is provided
+            if (webResource != null)
             {
-                if (match.Groups.Count > 1)
-                {
-                    string fieldName = match.Groups[1].Value;
-                    hiddenFields.Add(fieldName);
-                }
+                webResource.FieldModifications = ParseFieldModifications(script, webResource.WebResourceId, webResource.DisplayName);
+                webResource.ApiPatterns = found.ToList();
             }
+
+            // Legacy hidden field parsing for backward compatibility
+            var hiddenFields = webResource?.FieldModifications?
+                .Where(fm => fm.ModificationType == JavaScriptModificationType.Visibility && 
+                           fm.ModificationValue?.ToLower() == "false")
+                .Select(fm => fm.FieldName)
+                .ToList() ?? new List<string>();
 
             if (hiddenFields.Count > 0)
             {
@@ -425,6 +427,90 @@ namespace DataIngestor
             }
 
             return found;
+        }
+
+        /// <summary>
+        /// Parses JavaScript code to identify field modifications (visibility, required level, default values, etc.)
+        /// </summary>
+        /// <param name="script">The JavaScript code to parse.</param>
+        /// <param name="webResourceId">The ID of the web resource containing this script.</param>
+        /// <param name="webResourceName">The name of the web resource containing this script.</param>
+        /// <returns>List of field modifications found in the script.</returns>
+        private List<DataDictionaryJavaScriptFieldModification> ParseFieldModifications(string script, Guid webResourceId, string webResourceName)
+        {
+            var modifications = new List<DataDictionaryJavaScriptFieldModification>();
+            if (string.IsNullOrWhiteSpace(script))
+                return modifications;
+
+            var scriptLines = script.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Pattern definitions for different types of field modifications
+            var patterns = new[]
+            {
+                // Visibility modifications
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setVisible\s*\(\s*(true|false)\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.Visibility,
+                    ValueGroup = 2
+                },
+                // Required level modifications
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getAttribute\(\s*[""']([^""']+)[""']\s*\)\.setRequiredLevel\s*\(\s*[""']([^""']+)[""']\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.RequiredLevel,
+                    ValueGroup = 2
+                },
+                // Default value assignments
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getAttribute\(\s*[""']([^""']+)[""']\s*\)\.setValue\s*\(\s*([^)]+)\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.DefaultValue,
+                    ValueGroup = 2
+                },
+                // Disabled state modifications
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setDisabled\s*\(\s*(true|false)\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.DisabledState,
+                    ValueGroup = 2
+                },
+                // Display name/label modifications
+                new {
+                    Regex = new Regex(@"(?:formContext|Xrm\.Page)\.getControl\(\s*[""']([^""']+)[""']\s*\)\.setLabel\s*\(\s*[""']([^""']*)[""']\s*\)", RegexOptions.IgnoreCase),
+                    Type = JavaScriptModificationType.DisplayName,
+                    ValueGroup = 2
+                }
+            };
+
+            for (int lineIndex = 0; lineIndex < scriptLines.Length; lineIndex++)
+            {
+                var line = scriptLines[lineIndex];
+                
+                foreach (var pattern in patterns)
+                {
+                    var matches = pattern.Regex.Matches(line);
+                    foreach (Match match in matches)
+                    {
+                        if (match.Groups.Count > pattern.ValueGroup)
+                        {
+                            var modification = new DataDictionaryJavaScriptFieldModification
+                            {
+                                FieldName = match.Groups[1].Value,
+                                WebResourceId = webResourceId,
+                                WebResourceName = webResourceName,
+                                ModificationType = pattern.Type,
+                                ModificationValue = match.Groups[pattern.ValueGroup].Value,
+                                JavaScriptCode = line.Trim(),
+                                LineNumber = lineIndex + 1,
+                                ParsedOn = DateTime.UtcNow
+                            };
+
+                            modifications.Add(modification);
+
+                            Console.WriteLine($"Found {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
+                        }
+                    }
+                }
+            }
+
+            return modifications;
         }
 
 
@@ -678,6 +764,91 @@ namespace DataIngestor
             }
         }
 
+        /// <summary>
+        /// Correlates JavaScript field modifications with attribute metadata
+        /// </summary>
+        private void CorrelateJavaScriptModificationsWithAttributes()
+        {
+            Console.WriteLine("Correlating JavaScript modifications with attribute metadata...");
+
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                if (ddSolution.WebResources == null || ddSolution.AttributeMetadata == null)
+                    continue;
+
+                // Create a lookup dictionary for faster attribute metadata access
+                var attributeLookup = ddSolution.AttributeMetadata
+                    .GroupBy(attr => attr.ColumnLogical)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                // Process all field modifications from all web resources
+                foreach (var webResource in ddSolution.WebResources)
+                {
+                    foreach (var modification in webResource.FieldModifications)
+                    {
+                        if (attributeLookup.TryGetValue(modification.FieldName, out var attributes))
+                        {
+                            foreach (var attribute in attributes)
+                            {
+                                // Update attribute metadata based on JavaScript modifications
+                                switch (modification.ModificationType)
+                                {
+                                    case JavaScriptModificationType.Visibility:
+                                        if (modification.ModificationValue?.ToLower() == "false")
+                                        {
+                                            attribute.IsHiddenByScript = true;
+                                        }
+                                        break;
+
+                                    case JavaScriptModificationType.RequiredLevel:
+                                        if (modification.ModificationValue?.ToLower() == "required")
+                                        {
+                                            attribute.IsRequiredByScript = true;
+                                        }
+                                        break;
+
+                                    case JavaScriptModificationType.DefaultValue:
+                                        attribute.HasDefaultValueByScript = true;
+                                        if (string.IsNullOrWhiteSpace(attribute.ScriptDefaultValue))
+                                        {
+                                            attribute.ScriptDefaultValue = modification.ModificationValue;
+                                        }
+                                        else
+                                        {
+                                            // Multiple default values found
+                                            attribute.ScriptDefaultValue += $"; {modification.ModificationValue}";
+                                        }
+                                        break;
+                                }
+
+                                // Track which web resources modify this field
+                                var webResourceName = modification.WebResourceName ?? modification.WebResourceId.ToString();
+                                if (string.IsNullOrWhiteSpace(attribute.ModifyingWebResources))
+                                {
+                                    attribute.ModifyingWebResources = webResourceName;
+                                }
+                                else if (!attribute.ModifyingWebResources.Contains(webResourceName))
+                                {
+                                    attribute.ModifyingWebResources += $"; {webResourceName}";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Log summary
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                if (ddSolution.AttributeMetadata == null) continue;
+
+                var hiddenByScript = ddSolution.AttributeMetadata.Count(a => a.IsHiddenByScript == true);
+                var requiredByScript = ddSolution.AttributeMetadata.Count(a => a.IsRequiredByScript == true);
+                var hasDefaultByScript = ddSolution.AttributeMetadata.Count(a => a.HasDefaultValueByScript == true);
+
+                Console.WriteLine($"Solution '{ddSolution.UniqueName}': {hiddenByScript} fields hidden by script, {requiredByScript} required by script, {hasDefaultByScript} with script defaults");
+            }
+        }
 
         private void SaveJavascriptToDataverse()
         {
@@ -704,6 +875,55 @@ namespace DataIngestor
                     }
                 }
             }
+
+            // Save JavaScript field modifications to Dataverse
+            SaveJavaScriptFieldModifications();
+        }
+
+        /// <summary>
+        /// Saves JavaScript field modifications to Dataverse in a separate table
+        /// </summary>
+        private void SaveJavaScriptFieldModifications()
+        {
+            Console.WriteLine("Saving JavaScript field modifications to Dataverse...");
+            int modificationCount = 0;
+
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                if (ddSolution.WebResources == null)
+                    continue;
+
+                foreach (var webResource in ddSolution.WebResources)
+                {
+                    foreach (var modification in webResource.FieldModifications)
+                    {
+                        try
+                        {
+                            var entity = new Entity("ljr_javascriptfieldmodification");
+                            entity["ljr_fieldname"] = modification.FieldName;
+                            entity["ljr_webresourceid"] = modification.WebResourceId.ToString();
+                            entity["ljr_webresourcename"] = modification.WebResourceName;
+                            entity["ljr_modificationtype"] = ((int)modification.ModificationType).ToString();
+                            entity["ljr_modificationtypename"] = modification.ModificationType.ToString();
+                            entity["ljr_modificationvalue"] = modification.ModificationValue;
+                            entity["ljr_javascriptcode"] = modification.JavaScriptCode;
+                            if (modification.LineNumber.HasValue)
+                                entity["ljr_linenumber"] = modification.LineNumber.Value;
+                            entity["ljr_notes"] = modification.Notes;
+                            entity["ljr_parsedon"] = modification.ParsedOn;
+
+                            _service.Create(entity);
+                            modificationCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error saving JavaScript modification for field '{modification.FieldName}': {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine($"Saved {modificationCount} JavaScript field modifications to Dataverse.");
         }
 
         private void SaveToDataverse()
@@ -788,6 +1008,15 @@ namespace DataIngestor
 
                     entity["ljr_description"] = attrMeta.Description;
                     entity["ljr_langcode"] = attrMeta.LangCode;
+
+                    // JavaScript modification fields
+                    entity["ljr_ishiddenbyscript"] = attrMeta.IsHiddenByScript ?? false;
+                    entity["ljr_isrequiredbyscript"] = attrMeta.IsRequiredByScript ?? false;
+                    entity["ljr_hasdefaultvaluebyscript"] = attrMeta.HasDefaultValueByScript ?? false;
+                    if (!string.IsNullOrWhiteSpace(attrMeta.ScriptDefaultValue))
+                        entity["ljr_scriptdefaultvalue"] = attrMeta.ScriptDefaultValue;
+                    if (!string.IsNullOrWhiteSpace(attrMeta.ModifyingWebResources))
+                        entity["ljr_modifyingwebresources"] = attrMeta.ModifyingWebResources;
 
                     // --- Check if record exists in Dataverse by alternate key ---
                     bool exists = false;
