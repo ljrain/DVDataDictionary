@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace DataDictionary.Models
 {
@@ -95,5 +96,10 @@ namespace DataDictionary.Models
         /// List of web resources that modify this field
         /// </summary>
         public string ModifyingWebResources { get; set; }
+
+        /// <summary>
+        /// JavaScript field modifications related to this attribute
+        /// </summary>
+        public List<DataDictionaryJavaScriptFieldModification> JavaScriptFieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
     }
 }

@@ -790,6 +790,11 @@ namespace DataIngestor
                         {
                             foreach (var attribute in attributes)
                             {
+                                // --- Add the modification to the attribute's collection and set parent reference ---
+                                attribute.JavaScriptFieldModifications.Add(modification);
+                                modification.ParentAttribute = attribute;
+                                // ----------------------------------------------------------
+
                                 // Update attribute metadata based on JavaScript modifications
                                 switch (modification.ModificationType)
                                 {
@@ -852,26 +857,51 @@ namespace DataIngestor
 
         private void SaveJavascriptToDataverse()
         {
-            // Save all web resources to Dataverse
+            // Save all web resources to Dataverse (Upsert)
             foreach (var ddSolution in _ddSolutions.Values)
             {
                 if (ddSolution.WebResources == null || ddSolution.WebResources.Count == 0)
                     continue;
                 foreach (var webResource in ddSolution.WebResources)
                 {
-                    var entity = new Entity("ljr_webresource");
-                    //entity["webresourceidunique"] = webResource.WebResourceId; // Use unique ID for updates
-                    entity["ljr_displayname"] = webResource.DisplayName;
-                    entity["ljr_javascript"] = webResource.Content;
-                    //entity["webresourcetype"] = new OptionSetValue(61); // Assuming 61 is the type for 
                     try
                     {
-                        _service.Create(entity);
-                        Console.WriteLine($"Updated Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
+                        // --- Upsert logic: use ljr_displayname as unique key (adjust if you have a better unique key) ---
+                        var query = new QueryExpression("ljr_webresource")
+                        {
+                            ColumnSet = new ColumnSet("ljr_webresourceid"),
+                            Criteria = new FilterExpression
+                            {
+                                FilterOperator = LogicalOperator.And
+                            }
+                        };
+                        query.Criteria.AddCondition("ljr_displayname", ConditionOperator.Equal, webResource.DisplayName);
+
+                        var result = _service.RetrieveMultiple(query);
+
+                        var entity = new Entity("ljr_webresource");
+                        //entity["webresourceidunique"] = webResource.WebResourceId; // Use unique ID for updates if available
+                        entity["ljr_displayname"] = webResource.DisplayName;
+                        entity["ljr_javascript"] = webResource.Content;
+                        //entity["webresourcetype"] = new OptionSetValue(61); // Assuming 61 is the type for 
+
+                        if (result.Entities.Count > 0)
+                        {
+                            // Update existing record
+                            entity.Id = result.Entities[0].Id;
+                            _service.Update(entity);
+                            Console.WriteLine($"Updated Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
+                        }
+                        else
+                        {
+                            // Create new record
+                            _service.Create(entity);
+                            Console.WriteLine($"Created Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error updating Web Resource '{webResource.DisplayName}': {ex.Message}");
+                        Console.WriteLine($"Error upserting Web Resource '{webResource.DisplayName}': {ex.Message}");
                     }
                 }
             }
@@ -881,7 +911,7 @@ namespace DataIngestor
         }
 
         /// <summary>
-        /// Saves JavaScript field modifications to Dataverse in a separate table
+        /// Saves JavaScript field modifications to Dataverse in a separate table (Upsert)
         /// </summary>
         private void SaveJavaScriptFieldModifications()
         {
@@ -899,12 +929,28 @@ namespace DataIngestor
                     {
                         try
                         {
+                            // --- Upsert logic: use WebResourceId + FieldName + ModificationType as unique key ---
+                            var query = new QueryExpression("ljr_javascriptfieldmodification")
+                            {
+                                ColumnSet = new ColumnSet("ljr_javascriptfieldmodificationid"),
+                                Criteria = new FilterExpression
+                                {
+                                    FilterOperator = LogicalOperator.And
+                                }
+                            };
+                            query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, modification.WebResourceId.ToString());
+                            query.Criteria.AddCondition("ljr_fieldname", ConditionOperator.Equal, modification.FieldName);
+                            query.Criteria.AddCondition("ljr_modificationtype", ConditionOperator.Equal, ((int)modification.ModificationType).ToString());
+
+                            var result = _service.RetrieveMultiple(query);
+
                             var entity = new Entity("ljr_javascriptfieldmodification");
+                            entity["ljr_name"] = modification.WebResourceName + " - " + modification.FieldName;
                             entity["ljr_fieldname"] = modification.FieldName;
                             entity["ljr_webresourceid"] = modification.WebResourceId.ToString();
                             entity["ljr_webresourcename"] = modification.WebResourceName;
                             entity["ljr_modificationtype"] = ((int)modification.ModificationType).ToString();
-                            entity["ljr_modificationtypename"] = modification.ModificationType.ToString();
+                            //entity["ljr_modificationtypename"] = modification.ModificationType.ToString();
                             entity["ljr_modificationvalue"] = modification.ModificationValue;
                             entity["ljr_javascriptcode"] = modification.JavaScriptCode;
                             if (modification.LineNumber.HasValue)
@@ -912,7 +958,19 @@ namespace DataIngestor
                             entity["ljr_notes"] = modification.Notes;
                             entity["ljr_parsedon"] = modification.ParsedOn;
 
-                            _service.Create(entity);
+                            if (result.Entities.Count > 0)
+                            {
+                                // Update existing record
+                                entity.Id = result.Entities[0].Id;
+                                _service.Update(entity);
+                                Console.WriteLine($"Updated JavaScript modification: {modification.WebResourceName} - {modification.FieldName} ({modification.ModificationType})");
+                            }
+                            else
+                            {
+                                // Create new record
+                                _service.Create(entity);
+                                Console.WriteLine($"Created JavaScript modification: {modification.WebResourceName} - {modification.FieldName} ({modification.ModificationType})");
+                            }
                             modificationCount++;
                         }
                         catch (Exception ex)

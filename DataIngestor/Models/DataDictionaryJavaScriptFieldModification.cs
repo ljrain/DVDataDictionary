@@ -52,6 +52,11 @@ namespace DataDictionary.Models
         /// When this modification was detected/parsed
         /// </summary>
         public DateTime ParsedOn { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Reference to the parent attribute metadata (optional, for navigation)
+        /// </summary>
+        public DataDictionaryAttributeMetadata ParentAttribute { get; set; }
     }
 
     /// <summary>
