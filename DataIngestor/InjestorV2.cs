@@ -83,6 +83,27 @@ namespace DataIngestor
                     webRes.WebResourceId = webResource.Id;
                     webRes.DisplayName = webResource.Attributes["name"].ToString();
                     webRes.Content = javascript;
+                    
+                    // Enhanced JavaScript analysis for field references
+                    var fieldReferences = AnalyzeJavaScriptForFieldReferences(javascript);
+                    Console.WriteLine($"Found {fieldReferences.Count} field references in {webRes.DisplayName}");
+                    
+                    // Associate field references with attributes
+                    foreach (var fieldRef in fieldReferences)
+                    {
+                        var matchingAttributes = _ddSolutions["Default"].AttributeMetadata
+                            .Where(attr => attr.LogicalName.Equals(fieldRef, StringComparison.OrdinalIgnoreCase) ||
+                                          attr.SchemaName.Equals(fieldRef, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                            
+                        foreach (var attr in matchingAttributes)
+                        {
+                            if (!attr.ScriptReferences.Contains(webRes.DisplayName))
+                            {
+                                attr.ScriptReferences.Add(webRes.DisplayName);
+                            }
+                        }
+                    }
 
                     _ddSolutions["SampleSolution"].WebResources.Add(webRes);
                     List<string> parsedJavaScript = ParseJavaScript(webRes.Content); // Parse the JavaScript content for Dataverse API events/actions
@@ -488,14 +509,33 @@ namespace DataIngestor
                     {
                         Console.WriteLine($"Processing entity: {entity.LogicalName}");
                         
-                        foreach (AttributeMetadata attribute in entity.Attributes)
+                        try
                         {
-                            var ddMeta = CreateComprehensiveAttributeMetadata(entity, attribute);
+                            foreach (AttributeMetadata attribute in entity.Attributes)
+                            {
+                                try
+                                {
+                                    var ddMeta = CreateComprehensiveAttributeMetadata(entity, attribute);
+                                    
+                                    // Enhanced type-specific processing
+                                    ProcessAttributeByType(attribute, ddMeta);
+                                    
+                                    _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
+                                }
+                                catch (Exception attrEx)
+                                {
+                                    Console.WriteLine($"Error processing attribute {attribute.LogicalName} in entity {entity.LogicalName}: {attrEx.Message}");
+                                    // Continue processing other attributes
+                                }
+                            }
                             
-                            // Enhanced type-specific processing
-                            ProcessAttributeByType(attribute, ddMeta);
-                            
-                            _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
+                            // Process entity relationships
+                            ProcessEntityRelationships(entity);
+                        }
+                        catch (Exception entityEx)
+                        {
+                            Console.WriteLine($"Error processing entity {entity.LogicalName}: {entityEx.Message}");
+                            // Continue processing other entities
                         }
                     }
                 }
@@ -634,12 +674,125 @@ namespace DataIngestor
         }
         
         /// <summary>
+        /// Process entity relationships (1:N, N:1, N:N)
+        /// </summary>
+        private void ProcessEntityRelationships(EntityMetadata entity)
+        {
+            try
+            {
+                // Process One-to-Many relationships
+                if (entity.OneToManyRelationships != null)
+                {
+                    Console.WriteLine($"Processing {entity.OneToManyRelationships.Length} one-to-many relationships for {entity.LogicalName}");
+                    foreach (var relationship in entity.OneToManyRelationships)
+                    {
+                        // Store relationship metadata - could be expanded to create relationship entities
+                        // For now, we enhance the lookup attribute metadata with relationship info
+                        var lookupAttributes = _ddSolutions["Default"].AttributeMetadata
+                            .Where(attr => attr.EntityLogicalName == relationship.ReferencedEntity 
+                                        && attr.DataType == "Lookup"
+                                        && attr.LookupTargets.Contains(relationship.ReferencingEntity))
+                            .ToList();
+                            
+                        foreach (var attr in lookupAttributes)
+                        {
+                            if (!attr.ScriptReferences.Contains($"Relationship: {relationship.SchemaName}"))
+                            {
+                                attr.ScriptReferences.Add($"Relationship: {relationship.SchemaName}");
+                            }
+                        }
+                    }
+                }
+                
+                // Process Many-to-One relationships  
+                if (entity.ManyToOneRelationships != null)
+                {
+                    Console.WriteLine($"Processing {entity.ManyToOneRelationships.Length} many-to-one relationships for {entity.LogicalName}");
+                    // Similar processing can be added here
+                }
+                
+                // Process Many-to-Many relationships
+                if (entity.ManyToManyRelationships != null)
+                {
+                    Console.WriteLine($"Processing {entity.ManyToManyRelationships.Length} many-to-many relationships for {entity.LogicalName}");
+                    // Similar processing can be added here
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing relationships for entity {entity.LogicalName}: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Enhanced JavaScript analysis to find field references
+        /// Looks for common patterns like formContext.getControl(), getAttribute(), etc.
+        /// </summary>
+        private List<string> AnalyzeJavaScriptForFieldReferences(string javascript)
+        {
+            var fieldReferences = new HashSet<string>();
+            
+            if (string.IsNullOrEmpty(javascript))
+                return fieldReferences.ToList();
+                
+            try
+            {
+                // Common patterns for field references in Dataverse JavaScript
+                var patterns = new[]
+                {
+                    @"getAttribute\(['""]([^'""]+)['""]\)",                    // getAttribute("fieldname")
+                    @"getControl\(['""]([^'""]+)['""]\)",                     // getControl("fieldname")
+                    @"formContext\.data\.entity\.attributes\.get\(['""]([^'""]+)['""]\)", // formContext.data.entity.attributes.get("fieldname")
+                    @"formContext\.ui\.controls\.get\(['""]([^'""]+)['""]\)", // formContext.ui.controls.get("fieldname")
+                    @"Xrm\.Page\.getAttribute\(['""]([^'""]+)['""]\)",         // Legacy Xrm.Page.getAttribute("fieldname")
+                    @"Xrm\.Page\.getControl\(['""]([^'""]+)['""]\)",           // Legacy Xrm.Page.getControl("fieldname")
+                    @"data\.entity\.attributes\.get\(['""]([^'""]+)['""]\)",  // data.entity.attributes.get("fieldname")
+                    @"ui\.controls\.get\(['""]([^'""]+)['""]\)",               // ui.controls.get("fieldname")
+                    @"setValue\(['""]([^'""]+)['""]\s*,",                     // setValue("fieldname", value)
+                    @"getValue\(['""]([^'""]+)['""]\)",                       // getValue("fieldname")
+                };
+                
+                foreach (var pattern in patterns)
+                {
+                    var regex = new Regex(pattern, RegexOptions.IgnoreCase);
+                    var matches = regex.Matches(javascript);
+                    
+                    foreach (Match match in matches)
+                    {
+                        if (match.Groups.Count > 1)
+                        {
+                            var fieldName = match.Groups[1].Value;
+                            if (!string.IsNullOrEmpty(fieldName) && 
+                                !fieldName.Contains(" ") && 
+                                fieldName.Length > 2) // Basic validation
+                            {
+                                fieldReferences.Add(fieldName);
+                            }
+                        }
+                    }
+                }
+                
+                Console.WriteLine($"JavaScript analysis found {fieldReferences.Count} unique field references");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error analyzing JavaScript for field references: {ex.Message}");
+            }
+            
+            return fieldReferences.ToList();
+        }
+        
+        /// <summary>
         /// Process attribute-specific metadata based on type
         /// </summary>
         private void ProcessAttributeByType(AttributeMetadata attribute, DataDictionaryAttributeMetadata ddMeta)
         {
             switch (attribute.AttributeType?.Value)
             {
+                case AttributeTypeCode.BigInt:
+                    ProcessBigIntAttribute(attribute as BigIntAttributeMetadata, ddMeta);
+                    break;
+                    
                 case AttributeTypeCode.Boolean:
                     ProcessBooleanAttribute(attribute as BooleanAttributeMetadata, ddMeta);
                     break;
@@ -696,192 +849,19 @@ namespace DataIngestor
                     break;
             }
         }
-                            ddMeta.CanBeSecuredForRead = attribute.CanBeSecuredForRead;
-                            ddMeta.CanBeSecuredForUpdate = attribute.CanBeSecuredForUpdate;
-                            //ddMeta.CanModifiedAdditionalSettings = attribute.CanModifyAdditionalSettings;
-                            ddMeta.ColumnNumber = attribute.ColumnNumber;
-                            ddMeta.CreatedOn = attribute.CreatedOn ?? DateTime.MinValue;
-                            ddMeta.DeprecatedVersion = attribute.DeprecatedVersion ?? string.Empty;
-                            ddMeta.DisplayName = attribute.DisplayName.UserLocalizedLabel?.Label ?? string.Empty;
-                            ddMeta.EntityLogicalName = entity.LogicalName;
-                            ddMeta.ExtensionData = attribute.ExtensionData?.ToString() ?? string.Empty;
-                            ddMeta.ExternalName = attribute.ExternalName ?? string.Empty;
-                            ddMeta.HasChanged = attribute.HasChanged ?? false;
-                            ddMeta.InheritsFrom = attribute.InheritsFrom?.ToString() ?? string.Empty;
-                            ddMeta.IntroducedVersion = attribute.IntroducedVersion ?? string.Empty;
-                            //ddMeta.IsAuditEnabled = attribute.IsAuditEnabled ?? false;
-                            ddMeta.IsCustomAttribute = attribute.IsCustomAttribute ?? false;
-                            ddMeta.IsCustomizable = attribute.IsCustomizable?.Value ?? false;
-
-
-
-                            switch (attribute.AttributeType)
-                            {
-                                //case AttributeTypeCode.Boolean:
-                                //    break;
-
-                                case AttributeTypeCode.BigInt:
-                                    ddMeta.MinValue = (Int64?)((BigIntAttributeMetadata)attribute).MinValue;
-                                    ddMeta.MaxValue = (Int64?)((BigIntAttributeMetadata)attribute).MaxValue;
-                                    break;
-
-                                //case AttributeTypeCode.CalendarRules:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((CalendarRulesAttributeMetadata)attribute).MinValue, ((BigIntAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
-                                //case AttributeTypeCode.Customer:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((CustomerAttributeMetadata)attribute).MinValue, ((BigIntAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
-                                case AttributeTypeCode.DateTime:
-
-                                    ddMeta.FormulaDefinition = ((DateTimeAttributeMetadata)attribute).FormulaDefinition;
-                                    FormulaDefinition = ((DateTimeAttributeMetadata)attribute).FormulaDefinition;
-                                    break;
-
-                                case AttributeTypeCode.Decimal:
-                                    ddMeta.DataType = "Decimal";
-                                    FormulaDefinition = ((DecimalAttributeMetadata)attribute).FormulaDefinition;
-                                    ddMeta.MinValue = (Int64?)((DecimalAttributeMetadata)attribute).MinValue;
-                                    ddMeta.MaxValue = (Int64?)((DecimalAttributeMetadata)attribute).MaxValue;
-                                    ddMeta.Precision = ((DecimalAttributeMetadata)attribute).Precision;
-                                    break;
-
-                                case AttributeTypeCode.Double:
-                                    ddMeta.DataType = "Double";
-                                    ddMeta.MinValue = (Int64?)((DoubleAttributeMetadata)attribute).MinValue;
-                                    ddMeta.MaxValue = (Int64?)((DoubleAttributeMetadata)attribute).MaxValue;
-                                    break;
-
-                                //case AttributeTypeCode.EntityName:
-                                //    // !! sb.AppendFormat("\t\t{0}\t{1}", ((EntityNameAttributeMetadata)attribute).IsPrimaryId, ((EntityNameAttributeMetadata)attribute).IsPrimaryName);
-                                //    break;
-
-                                case AttributeTypeCode.Integer:
-                                    FormulaDefinition = ((IntegerAttributeMetadata)attribute).FormulaDefinition;
-                                    ddMeta.MinValue = (Int64?)((IntegerAttributeMetadata)attribute).MinValue;
-                                    ddMeta.MaxValue = (Int64?)((IntegerAttributeMetadata)attribute).MaxValue;
-                                    break;
-
-                                case AttributeTypeCode.Lookup:
-                                    ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
-                                        ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
-                                        : null;
-
-                                    ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
-                                        ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
-                                        : null;
-
-                                    break;
-
-                                //case AttributeTypeCode.ManagedProperty:
-                                //    // sb.AppendFormat("\t{0}\t\t", ((ManagedPropertyAttributeMetadata)attribute));
-                                //    break;
-
-                                case AttributeTypeCode.Memo:
-                                    ddMeta.DataType = "Memo";
-                                    ddMeta.MaxLength = ((MemoAttributeMetadata)attribute).MaxLength;
-                                    break;
-
-                                case AttributeTypeCode.Money:
-                                    ddMeta.DataType = "Money";
-                                    FormulaDefinition = ((MoneyAttributeMetadata)attribute).FormulaDefinition;
-                                    ddMeta.MinValue = (Int64?)((MoneyAttributeMetadata)attribute).MinValue;
-                                    ddMeta.MaxValue = (Int64?)((MoneyAttributeMetadata)attribute).MaxValue;
-                                    break;
-
-                                //case AttributeTypeCode.Owner:
-                                //    sb.AppendFormat("\t\t\t{0}\t{1}", ((OwnerAttributeMetadata)attribute).MinValue);
-                                //    break;
-
-                                //case AttributeTypeCode.PartyList:
-                                //    sb.AppendFormat("\t\t{0}\t\t", ((PartyListAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
-                                //    break;
-
-                                case AttributeTypeCode.Picklist:
-                                    ddMeta.DataType = "Picklist";
-                                    FormulaDefinition = ((PicklistAttributeMetadata)attribute).FormulaDefinition;
-                                    PicklistAM = (PicklistAttributeMetadata)attribute;
-
-                                    switch (PicklistAM.OptionSet.Options.Count)
-                                    {
-                                        case 0:
-                                            //sb.Append("\t\t\t");
-                                            break;
-                                        case 1:
-                                            om = PicklistAM.OptionSet.Options[0];
-                                            
-                                            break;
-                                        default:
-                                            om = PicklistAM.OptionSet.Options[0];
-                                            //sb.AppendFormat("\t{0}\t{1}\t{2}", om.Value, om.Label.UserLocalizedLabel.Label, om.Label.UserLocalizedLabel.LanguageCode);
-                                            for (int j = 1; j < PicklistAM.OptionSet.Options.Count; j++)
-                                            {
-                                                //sb.AppendLine();
-                                                //for (int i = 0; i < tabIndex; i++) { //sb.Append("\t"); }
-                                                ////om = PicklistAM.OptionSet.Options[j];
-                                                ////sb.AppendFormat("\t{0}\t{1}\t{2}", om.Value, om.Label.UserLocalizedLabel.Label, om.Label.UserLocalizedLabel.LanguageCode);
-                                            }
-                                            break;
-                                    }
-                                    //sb.AppendLine();
-                                    break;
-
-                                //case AttributeTypeCode.State:
-                                //    sb.AppendFormat("\t{0}\t\t", ((StateAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
-                                //    break;
-
-                                //case AttributeTypeCode.Status:
-                                //    sb.AppendFormat("\t{0}\t\t", ((StatusAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
-                                //    break;
-
-                                case AttributeTypeCode.String:
-                                    ddMeta.DataType = "String";
-                                    FormulaDefinition = ((StringAttributeMetadata)attribute).FormulaDefinition;
-                                    //sb.AppendFormat("\t{0}\t{1}\t\t{2}\t\t\t"
-                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
-                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
-                                    //    , ((StringAttributeMetadata)attribute).MaxLength
-                                    //    );
-                                    break;
-
-                                //case AttributeTypeCode.Uniqueidentifier:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((UniqueIdentifierAttributeMetadata)attribute).IsPrimaryId, ((UniqueIdentifierAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
-                                //case AttributeTypeCode.Virtual:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((VirtualAttributeMetadata)attribute).MinValue, ((VirtualAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
-                                default:
-                                    break;
-                            }
-
-                            _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
-                        }
-                    }
-
-                }
-                else
-                {
-                    Console.Write("Failed to retrieve entity metadata");
-                }
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
-            finally
-            {
-                om = null;
-                PicklistAM = null;
-                response = null;
-                request = null;
-            }
-        }
 
         #region Type-Specific Attribute Processing Methods
+
+        /// <summary>
+        /// Process BigInt attribute specific metadata
+        /// </summary>
+        private void ProcessBigIntAttribute(BigIntAttributeMetadata bigIntAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (bigIntAttr == null) return;
+            
+            ddMeta.MinValue = bigIntAttr.MinValue;
+            ddMeta.MaxValue = bigIntAttr.MaxValue;
+        }
 
         /// <summary>
         /// Process Boolean attribute specific metadata
