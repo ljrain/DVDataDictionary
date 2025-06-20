@@ -42,9 +42,10 @@ namespace DataDictionary
 
                 #endregion
 
-                InjestorV2 injestor = new InjestorV2(service);
-                tracingService.Trace("DataDictionaryPlugin: Created InjestorV2 instance.");
-                injestor.ProcessSolutions();
+                // Create the enhanced data dictionary injector
+                InjectorV2 injector = new InjectorV2(service);
+                tracingService.Trace("DataDictionaryPlugin: Created InjectorV2 instance.");
+                injector.ProcessSolutions();
 
 
 

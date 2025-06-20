@@ -21,9 +21,14 @@ using System.Workflow.Runtime.Tracking;
 
 namespace DataIngestor
 {
-    public class InjestorV2
+    /// <summary>
+    /// Enhanced Data Dictionary Injector - Version 2
+    /// Renamed from InjestorV2 to InjectorV2 for proper naming consistency
+    /// Provides comprehensive metadata extraction and processing for Dataverse solutions
+    /// </summary>
+    public class InjectorV2
     {
-        public InjestorV2(IOrganizationService servClient)
+        public InjectorV2(IOrganizationService servClient)
         {
             _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
         }
@@ -428,15 +433,19 @@ namespace DataIngestor
         }
 
 
+        /// <summary>
+        /// Enhanced metadata extraction with comprehensive attribute analysis
+        /// Based on XRM Toolbox MetadataBrowser reference implementation
+        /// </summary>
         private void LogSchema()
         {
             RetrieveAllEntitiesRequest request = null;
             RetrieveAllEntitiesResponse response = null;
-            PicklistAttributeMetadata PicklistAM = null;
-            OptionMetadata om = null;
-            string FormulaDefinition = null;
+            PicklistAttributeMetadata picklistAM = null;
+            OptionMetadata optionMetadata = null;
+            string formulaDefinition = null;
 
-            // create Default solution to hold metadata
+            // Create Default solution to hold metadata
             if (!_ddSolutions.ContainsKey("Default"))
             {
                 _ddSolutions.Add("Default", new DataDictionarySolution
@@ -448,51 +457,245 @@ namespace DataIngestor
 
             try
             {
-                Console.Write("Retrieving Metadata .");
+                Console.WriteLine("Retrieving comprehensive metadata...");
                 request = new RetrieveAllEntitiesRequest()
                 {
-                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes | EntityFilters.Relationships,
+                    EntityFilters = EntityFilters.Entity | EntityFilters.Attributes | EntityFilters.Relationships | EntityFilters.Privileges,
                     RetrieveAsIfPublished = false,
                 };
                 response = (RetrieveAllEntitiesResponse)_service.Execute(request);
 
-                // Pseudocode plan:
-                // 1. Accept a list of allowed logical names (e.g., List<string> allowedLogicalNames or string[] allowedLogicalNames).
-                // 2. Filter the EntityMetadata results so that only those with LogicalName in the allowed list are included.
-                // 3. Apply this filter in the LINQ query where results are built.
+                Console.WriteLine($"Processing {response.EntityMetadata.Length} entities...");
 
-                // Example: Add a parameter to LogSchema or make allowedLogicalNames available in scope
-                // For demonstration, assume a variable allowedLogicalNames is available (e.g., string[] allowedLogicalNames).
-
-                IEnumerable<EntityMetadata> results = response.EntityMetadata
-                    .Where(e => e.IsCustomizable != null
-                        && _allowedLogicalNames.Contains(e.LogicalName))
-                    .OrderBy(e => e.LogicalName)
-                    .ToList();
-
-                if (results != null)
+                // Filter entities based on allowed logical names or process all if none specified
+                IEnumerable<EntityMetadata> filteredEntities = response.EntityMetadata;
+                if (_allowedLogicalNames != null && _allowedLogicalNames.Count > 0)
                 {
-                    foreach (EntityMetadata entity in results)
+                    filteredEntities = response.EntityMetadata
+                        .Where(e => _allowedLogicalNames.Contains(e.LogicalName))
+                        .OrderBy(e => e.LogicalName);
+                }
+                else
+                {
+                    filteredEntities = response.EntityMetadata
+                        .Where(e => e.IsCustomizable?.Value == true || e.IsCustomEntity == true)
+                        .OrderBy(e => e.LogicalName);
+                }
+
+                if (filteredEntities != null)
+                {
+                    foreach (EntityMetadata entity in filteredEntities)
                     {
+                        Console.WriteLine($"Processing entity: {entity.LogicalName}");
+                        
                         foreach (AttributeMetadata attribute in entity.Attributes)
-                        { 
-                            DataDictionaryAttributeMetadata ddMeta = new DataDictionaryAttributeMetadata();
-                            ddMeta.Table = entity.LogicalName;
-                            ddMeta.ColumnDisplay = (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label);
-                            ddMeta.ColumnLogical = attribute.LogicalName;
-                            ddMeta.ColumnSchema = attribute.SchemaName;
-                            ddMeta.DataType = attribute.AttributeType.Value.ToString();
-                            ddMeta.Description = attribute.Description?.UserLocalizedLabel?.Label ?? string.Empty;
-                            ddMeta.IsCustom = attribute.IsCustomAttribute ?? false;
-                            ddMeta.AuditEnabled = attribute.IsAuditEnabled.Value;
-                            //ddMeta.IsCalculated = attribute.IsCalculated.Value ?? false;
-                            ddMeta.LangCode = attribute.DisplayName.UserLocalizedLabel?.LanguageCode ?? 0;
-                            ddMeta.ModifiedOn = attribute.ModifiedOn ?? DateTime.MinValue;
-                            ddMeta.AttributeOf = entity.MetadataId.ToString(); // Assuming AttributeOf is the Entity's MetadataId
-                            ddMeta.AttributeType = attribute.AttributeType.Value.ToString();
-                            //ddMeta.AttributeTypeName = attribute.AttributeTypeName ?? string.Empty;
-                            //ddMeta.AutoNumberFormat = (attribute as AutoNumberAttributeMetadata)?.Format ?? string.Empty;
-                            ddMeta.CanBeSecuredForCreate = attribute.CanBeSecuredForCreate;
+                        {
+                            var ddMeta = CreateComprehensiveAttributeMetadata(entity, attribute);
+                            
+                            // Enhanced type-specific processing
+                            ProcessAttributeByType(attribute, ddMeta);
+                            
+                            _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("No metadata retrieved or filtered entities is null");
+                }
+                
+                Console.WriteLine($"Processed {_ddSolutions["Default"].AttributeMetadata.Count} attributes total");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in LogSchema: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                optionMetadata = null;
+                picklistAM = null;
+                response = null;
+                request = null;
+            }
+        }
+
+        /// <summary>
+        /// Create comprehensive attribute metadata with all standard properties
+        /// </summary>
+        private DataDictionaryAttributeMetadata CreateComprehensiveAttributeMetadata(EntityMetadata entity, AttributeMetadata attribute)
+        {
+            var ddMeta = new DataDictionaryAttributeMetadata();
+            
+            // Core properties
+            ddMeta.Table = entity.LogicalName;
+            ddMeta.ColumnDisplay = attribute.DisplayName?.UserLocalizedLabel?.Label ?? string.Empty;
+            ddMeta.ColumnLogical = attribute.LogicalName;
+            ddMeta.ColumnSchema = attribute.SchemaName;
+            ddMeta.DataType = attribute.AttributeType?.Value.ToString() ?? "Unknown";
+            ddMeta.Description = attribute.Description?.UserLocalizedLabel?.Label ?? string.Empty;
+            ddMeta.IsCustom = attribute.IsCustomAttribute ?? false;
+            ddMeta.AuditEnabled = attribute.IsAuditEnabled?.Value ?? false;
+            ddMeta.LangCode = attribute.DisplayName?.UserLocalizedLabel?.LanguageCode ?? 1033;
+            ddMeta.ModifiedOn = attribute.ModifiedOn ?? DateTime.MinValue;
+            
+            // Extended properties from reference implementation
+            ddMeta.AttributeOf = attribute.AttributeOf;
+            ddMeta.AttributeType = attribute.AttributeType?.Value.ToString() ?? "Unknown";
+            ddMeta.AttributeTypeName = GetAttributeTypeName(attribute);
+            ddMeta.AutoNumberFormat = (attribute as StringAttributeMetadata)?.AutoNumberFormat;
+            
+            // Security properties
+            ddMeta.CanBeSecuredForCreate = attribute.CanBeSecuredForCreate;
+            ddMeta.CanBeSecuredForRead = attribute.CanBeSecuredForRead;
+            ddMeta.CanBeSecuredForUpdate = attribute.CanBeSecuredForUpdate;
+            
+            // Customization properties
+            ddMeta.CanModifiedAdditionalSettings = attribute.CanModifyAdditionalSettings?.Value;
+            ddMeta.IsCustomizable = attribute.IsCustomizable?.Value;
+            ddMeta.IsRenamable = attribute.IsRenameable?.Value;
+            
+            // System properties
+            ddMeta.ColumnNumber = attribute.ColumnNumber;
+            ddMeta.CreatedOn = attribute.CreatedOn;
+            ddMeta.DeprecatedVersion = attribute.DeprecatedVersion;
+            ddMeta.DisplayName = attribute.DisplayName?.UserLocalizedLabel?.Label ?? string.Empty;
+            ddMeta.EntityLogicalName = entity.LogicalName;
+            ddMeta.ExtensionData = attribute.ExtensionData?.ToString();
+            ddMeta.ExternalName = attribute.ExternalName;
+            ddMeta.HasChanged = attribute.HasChanged;
+            ddMeta.InheritsFrom = attribute.InheritsFrom;
+            ddMeta.IntroducedVersion = attribute.IntroducedVersion;
+            
+            // Validation properties
+            ddMeta.IsAuditEnabled = attribute.IsAuditEnabled?.Value;
+            ddMeta.IsCustomAttribute = attribute.IsCustomAttribute;
+            ddMeta.IsDataSourceSecret = attribute.IsDataSourceSecret;
+            ddMeta.IsFilterable = attribute.IsFilterable;
+            ddMeta.IsGlobalFilterEnabled = attribute.IsGlobalFilterEnabled?.Value;
+            ddMeta.IsLogical = attribute.IsLogical;
+            ddMeta.IsManaged = attribute.IsManaged;
+            ddMeta.IsPrimaryId = attribute.IsPrimaryId;
+            ddMeta.IsPrimaryName = attribute.IsPrimaryName;
+            ddMeta.IsRequiredForForm = attribute.IsRequiredForForm;
+            ddMeta.IsRetrievable = attribute.IsRetrievable;
+            ddMeta.IsSearchable = attribute.IsSearchable;
+            ddMeta.IsSecured = attribute.IsSecured;
+            ddMeta.IsSortableEnabled = attribute.IsSortableEnabled?.Value;
+            
+            // Usage properties
+            ddMeta.IsValidForAdvancedFind = attribute.IsValidForAdvancedFind?.Value;
+            ddMeta.IsValidForCreate = attribute.IsValidForCreate;
+            ddMeta.IsValidForForm = attribute.IsValidForForm;
+            ddMeta.IsValidForGrid = attribute.IsValidForGrid;
+            ddMeta.IsValidForRead = attribute.IsValidForRead;
+            ddMeta.IsValidForUpdate = attribute.IsValidForUpdate;
+            ddMeta.IsValidODataAttribute = attribute.IsValidODataAttribute;
+            
+            // Reference properties
+            ddMeta.LikedAttributeId = attribute.LinkedAttributeId?.ToString();
+            ddMeta.LogicalName = attribute.LogicalName;
+            ddMeta.MetadataId = attribute.MetadataId?.ToString();
+            ddMeta.RequiredLevel = attribute.RequiredLevel?.Value.ToString();
+            ddMeta.SchemaName = attribute.SchemaName;
+            
+            // Enhanced properties
+            ddMeta.SourceType = GetSourceType(attribute);
+            
+            return ddMeta;
+        }
+        
+        /// <summary>
+        /// Get enhanced attribute type name with multi-select support
+        /// </summary>
+        private string GetAttributeTypeName(AttributeMetadata attribute)
+        {
+            if (attribute is MultiSelectPicklistAttributeMetadata)
+            {
+                return "MultiSelect Picklist";
+            }
+            return attribute.AttributeTypeName?.Value ?? attribute.AttributeType?.Value.ToString() ?? "Unknown";
+        }
+        
+        /// <summary>
+        /// Determine source type: Standard, Calculated, or Rollup
+        /// </summary>
+        private string GetSourceType(AttributeMetadata attribute)
+        {
+            switch (attribute.SourceType ?? 0)
+            {
+                case 1:
+                    return "Calculated";
+                case 2:
+                    return "Rollup";
+                default:
+                    return "Standard";
+            }
+        }
+        
+        /// <summary>
+        /// Process attribute-specific metadata based on type
+        /// </summary>
+        private void ProcessAttributeByType(AttributeMetadata attribute, DataDictionaryAttributeMetadata ddMeta)
+        {
+            switch (attribute.AttributeType?.Value)
+            {
+                case AttributeTypeCode.Boolean:
+                    ProcessBooleanAttribute(attribute as BooleanAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.DateTime:
+                    ProcessDateTimeAttribute(attribute as DateTimeAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Decimal:
+                    ProcessDecimalAttribute(attribute as DecimalAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Double:
+                    ProcessDoubleAttribute(attribute as DoubleAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Integer:
+                    ProcessIntegerAttribute(attribute as IntegerAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Lookup:
+                case AttributeTypeCode.Customer:
+                case AttributeTypeCode.Owner:
+                    ProcessLookupAttribute(attribute as LookupAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Memo:
+                    ProcessMemoAttribute(attribute as MemoAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Money:
+                    ProcessMoneyAttribute(attribute as MoneyAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Picklist:
+                case AttributeTypeCode.State:
+                case AttributeTypeCode.Status:
+                    ProcessPicklistAttribute(attribute as PicklistAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.String:
+                    ProcessStringAttribute(attribute as StringAttributeMetadata, ddMeta);
+                    break;
+                    
+                case AttributeTypeCode.Virtual:
+                    if (attribute is MultiSelectPicklistAttributeMetadata multiSelect)
+                    {
+                        ProcessMultiSelectPicklistAttribute(multiSelect, ddMeta);
+                    }
+                    break;
+                    
+                default:
+                    // Handle other types or set defaults
+                    break;
+            }
+        }
                             ddMeta.CanBeSecuredForRead = attribute.CanBeSecuredForRead;
                             ddMeta.CanBeSecuredForUpdate = attribute.CanBeSecuredForUpdate;
                             //ddMeta.CanModifiedAdditionalSettings = attribute.CanModifyAdditionalSettings;
@@ -677,6 +880,207 @@ namespace DataIngestor
                 request = null;
             }
         }
+
+        #region Type-Specific Attribute Processing Methods
+
+        /// <summary>
+        /// Process Boolean attribute specific metadata
+        /// </summary>
+        private void ProcessBooleanAttribute(BooleanAttributeMetadata booleanAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (booleanAttr == null) return;
+            
+            ddMeta.FormulaDefinition = booleanAttr.FormulaDefinition;
+            ddMeta.IsCalculated = !string.IsNullOrEmpty(booleanAttr.FormulaDefinition);
+            
+            // Add option set values for boolean (True/False)
+            if (booleanAttr.OptionSet != null)
+            {
+                if (booleanAttr.OptionSet.TrueOption != null)
+                {
+                    ddMeta.OptionSetValues.Add(new OptionSetMetadata
+                    {
+                        Value = booleanAttr.OptionSet.TrueOption.Value ?? 1,
+                        Label = booleanAttr.OptionSet.TrueOption.Label?.UserLocalizedLabel?.Label ?? "True",
+                        IsManaged = booleanAttr.OptionSet.IsManaged ?? false
+                    });
+                }
+                
+                if (booleanAttr.OptionSet.FalseOption != null)
+                {
+                    ddMeta.OptionSetValues.Add(new OptionSetMetadata
+                    {
+                        Value = booleanAttr.OptionSet.FalseOption.Value ?? 0,
+                        Label = booleanAttr.OptionSet.FalseOption.Label?.UserLocalizedLabel?.Label ?? "False",
+                        IsManaged = booleanAttr.OptionSet.IsManaged ?? false
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// Process DateTime attribute specific metadata
+        /// </summary>
+        private void ProcessDateTimeAttribute(DateTimeAttributeMetadata dateTimeAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (dateTimeAttr == null) return;
+            
+            ddMeta.FormulaDefinition = dateTimeAttr.FormulaDefinition;
+            ddMeta.IsCalculated = !string.IsNullOrEmpty(dateTimeAttr.FormulaDefinition);
+            
+            // Additional DateTime-specific properties could be added here
+            // e.g., Format (DateOnly, DateAndTime), DateTimeBehavior, etc.
+        }
+
+        /// <summary>
+        /// Process Decimal attribute specific metadata
+        /// </summary>
+        private void ProcessDecimalAttribute(DecimalAttributeMetadata decimalAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (decimalAttr == null) return;
+            
+            ddMeta.FormulaDefinition = decimalAttr.FormulaDefinition;
+            ddMeta.IsCalculated = !string.IsNullOrEmpty(decimalAttr.FormulaDefinition);
+            ddMeta.Precision = decimalAttr.Precision;
+            ddMeta.MinValue = (long?)(decimalAttr.MinValue);
+            ddMeta.MaxValue = (long?)(decimalAttr.MaxValue);
+        }
+
+        /// <summary>
+        /// Process Double attribute specific metadata
+        /// </summary>
+        private void ProcessDoubleAttribute(DoubleAttributeMetadata doubleAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (doubleAttr == null) return;
+            
+            ddMeta.Precision = doubleAttr.Precision;
+            ddMeta.MinValue = (long?)(doubleAttr.MinValue);
+            ddMeta.MaxValue = (long?)(doubleAttr.MaxValue);
+        }
+
+        /// <summary>
+        /// Process Integer attribute specific metadata
+        /// </summary>
+        private void ProcessIntegerAttribute(IntegerAttributeMetadata integerAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (integerAttr == null) return;
+            
+            ddMeta.FormulaDefinition = integerAttr.FormulaDefinition;
+            ddMeta.IsCalculated = !string.IsNullOrEmpty(integerAttr.FormulaDefinition);
+            ddMeta.MinValue = integerAttr.MinValue;
+            ddMeta.MaxValue = integerAttr.MaxValue;
+        }
+
+        /// <summary>
+        /// Process Lookup attribute specific metadata
+        /// </summary>
+        private void ProcessLookupAttribute(LookupAttributeMetadata lookupAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (lookupAttr == null) return;
+            
+            // Add target entities
+            if (lookupAttr.Targets != null && lookupAttr.Targets.Length > 0)
+            {
+                ddMeta.LookupTargets.AddRange(lookupAttr.Targets);
+                ddMeta.LookupTo = string.Join(",", lookupAttr.Targets);
+            }
+        }
+
+        /// <summary>
+        /// Process Memo attribute specific metadata
+        /// </summary>
+        private void ProcessMemoAttribute(MemoAttributeMetadata memoAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (memoAttr == null) return;
+            
+            ddMeta.MaxLength = memoAttr.MaxLength;
+        }
+
+        /// <summary>
+        /// Process Money attribute specific metadata
+        /// </summary>
+        private void ProcessMoneyAttribute(MoneyAttributeMetadata moneyAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (moneyAttr == null) return;
+            
+            ddMeta.Precision = moneyAttr.Precision;
+            ddMeta.MinValue = (long?)(moneyAttr.MinValue);
+            ddMeta.MaxValue = (long?)(moneyAttr.MaxValue);
+        }
+
+        /// <summary>
+        /// Process Picklist attribute specific metadata
+        /// </summary>
+        private void ProcessPicklistAttribute(PicklistAttributeMetadata picklistAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (picklistAttr == null) return;
+            
+            ddMeta.FormulaDefinition = picklistAttr.FormulaDefinition;
+            ddMeta.IsCalculated = !string.IsNullOrEmpty(picklistAttr.FormulaDefinition);
+            
+            // Process option set values
+            if (picklistAttr.OptionSet?.Options != null)
+            {
+                foreach (var option in picklistAttr.OptionSet.Options)
+                {
+                    ddMeta.OptionSetValues.Add(new OptionSetMetadata
+                    {
+                        Value = option.Value ?? 0,
+                        Label = option.Label?.UserLocalizedLabel?.Label ?? string.Empty,
+                        Description = option.Description?.UserLocalizedLabel?.Label ?? string.Empty,
+                        IsManaged = picklistAttr.OptionSet.IsManaged ?? false,
+                        ExternalValue = option.ExternalValue
+                    });
+                }
+                
+                ddMeta.OptionSet = $"{picklistAttr.OptionSet.Options.Count} options";
+            }
+        }
+
+        /// <summary>
+        /// Process MultiSelect Picklist attribute specific metadata
+        /// </summary>
+        private void ProcessMultiSelectPicklistAttribute(MultiSelectPicklistAttributeMetadata multiSelectAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (multiSelectAttr == null) return;
+            
+            ddMeta.AttributeTypeName = "MultiSelect Picklist";
+            
+            // Process option set values
+            if (multiSelectAttr.OptionSet?.Options != null)
+            {
+                foreach (var option in multiSelectAttr.OptionSet.Options)
+                {
+                    ddMeta.OptionSetValues.Add(new OptionSetMetadata
+                    {
+                        Value = option.Value ?? 0,
+                        Label = option.Label?.UserLocalizedLabel?.Label ?? string.Empty,
+                        Description = option.Description?.UserLocalizedLabel?.Label ?? string.Empty,
+                        IsManaged = multiSelectAttr.OptionSet.IsManaged ?? false,
+                        ExternalValue = option.ExternalValue
+                    });
+                }
+                
+                ddMeta.OptionSet = $"{multiSelectAttr.OptionSet.Options.Count} multi-select options";
+            }
+        }
+
+        /// <summary>
+        /// Process String attribute specific metadata
+        /// </summary>
+        private void ProcessStringAttribute(StringAttributeMetadata stringAttr, DataDictionaryAttributeMetadata ddMeta)
+        {
+            if (stringAttr == null) return;
+            
+            ddMeta.FormulaDefinition = stringAttr.FormulaDefinition;
+            ddMeta.IsCalculated = !string.IsNullOrEmpty(stringAttr.FormulaDefinition);
+            ddMeta.IsFormula = !string.IsNullOrEmpty(stringAttr.FormulaDefinition) && 
+                              !stringAttr.FormulaDefinition.Trim().StartsWith("<?");
+            ddMeta.MaxLength = stringAttr.MaxLength;
+            ddMeta.AutoNumberFormat = stringAttr.AutoNumberFormat;
+        }
+
+        #endregion
 
 
         private void SaveJavascriptToDataverse()
