@@ -11,11 +11,16 @@ namespace DataDictionary.Models
         public string DisplayName { get; set; }
         public string Content { get; set; }
         public string DependencyXml { get; set; }
-        public string Type { get; set; }
+        // public string Type { get; set; } // UNUSED: Remove if not used
+
         public List<DataDictionaryJavaScriptFieldModification> FieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
         public List<string> ApiPatterns { get; set; } = new List<string>();
         public List<WebResourceDependency> ParsedDependencies { get; private set; } = new List<WebResourceDependency>();
         public string ParsedDependenciesJson => JsonConvert.SerializeObject(ParsedDependencies);
+
+        // For in-memory tracking only, not persisted
+        public HashSet<string> ModifiedTables { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // NOT SAVED TO DATAVERSE
+        public HashSet<string> ModifiedAttributes { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // NOT SAVED TO DATAVERSE
 
         public void ParseDependencies()
         {

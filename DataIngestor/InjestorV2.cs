@@ -105,7 +105,6 @@ namespace DataIngestor
                         DisplayName = webRes.DisplayName,
                         Content = webRes.Content,
                         DependencyXml = webRes.DependencyXml,
-                        Type = webRes.Type,
                         FieldModifications = webRes.FieldModifications,
                         ApiPatterns = webRes.ApiPatterns
                     });
@@ -136,6 +135,46 @@ namespace DataIngestor
                 timerGlobal.Stop(); // Stop the timer
                 Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
             }
+
+            #region Display Web Resource Modifications
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                foreach (var webResource in ddSolution.WebResources)
+                {
+                    Console.WriteLine($"Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
+
+                    //Display modified tables
+                    //if (webResource.ModifiedTables.Count > 0)
+                    //{
+                    //    Console.WriteLine("  Modified Tables:");
+                    //    foreach (var table in webResource.ModifiedTables)
+                    //    {
+                    //        Console.WriteLine($"    - {table}");
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    Console.WriteLine("  Modified Tables: None");
+                    //}
+
+                    //// Display modified attributes
+                    //if (webResource.ModifiedAttributes.Count > 0)
+                    //{
+                    //    Console.WriteLine("  Modified Attributes:");
+                    //    foreach (var attr in webResource.ModifiedAttributes)
+                    //    {
+                    //        Console.WriteLine($"    - {attr}");
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    Console.WriteLine("  Modified Attributes: None");
+                    //}
+
+                    Console.WriteLine();
+                }
+            }
+            #endregion
         }
 
 
@@ -281,7 +320,7 @@ namespace DataIngestor
             }
         }
 
-        private async Task ProcessAttributesAsync()
+        private void ProcessAttributesAsync()
         {
             foreach (DataDictionarySolution ddSolution in _ddSolutions.Values)
             {
@@ -310,22 +349,16 @@ namespace DataIngestor
                             {
                                 AttributeId = attribute.GetAttributeValue<Guid>("attributeid"),
                                 AttributeOf = attribute.GetAttributeValue<Guid>("attributeof"),
-                                AttributeTypeId = attribute.GetAttributeValue<Guid>("attributetypeid"), // Fixed CS0029: Correct type conversion
+                                AttributeTypeId = attribute.GetAttributeValue<Guid>("attributetypeid"),
                                 LogicalName = attribute.GetAttributeValue<string>("logicalname"),
                             };
 
                             ddSolution.AddAttribute(ddSolution, ddAttribute);
                             Console.WriteLine($"Attribute: {ddAttribute.AttributeName}, Logical Name: {ddAttribute.LogicalName}");
                         }
-
-
                     }
                 }
             }
-
-            //var accessToken = await DataverseWebApiHelper.GetAccessTokenAsync(Program.TENANTID, Program.CLIENTID, Program.CLIENTSECRET, Program.CRMURL);
-            //Console.WriteLine("Access Token Retrieved Successfully."); ;
-
         }
 
 
@@ -436,6 +469,15 @@ namespace DataIngestor
             {
                 webResource.FieldModifications = ParseFieldModifications(script, webResource.WebResourceId, webResource.DisplayName);
                 webResource.ApiPatterns = found.ToList();
+
+                // NEW: Track modified attributes from field modifications
+                foreach (var mod in webResource.FieldModifications)
+                {
+                    if (!string.IsNullOrWhiteSpace(mod.AttributeLogicalName))
+                        webResource.ModifiedAttributes.Add(mod.AttributeLogicalName);
+                    if (!string.IsNullOrWhiteSpace(mod.AttributeTable))
+                        webResource.ModifiedTables.Add(mod.AttributeTable);
+                }
             }
 
             // Legacy hidden field parsing for backward compatibility
@@ -981,7 +1023,6 @@ namespace DataIngestor
                         entity["ljr_dependencyxml"] = webResource.DependencyXml;
                         if (!string.IsNullOrWhiteSpace(webResource.ParsedDependenciesJson))
                             entity["ljr_parseddependencies"] = webResource.ParsedDependenciesJson;
-                        //entity["webresourcetype"] = new OptionSetValue(61); // Assuming 61 is the type for 
 
                         if (result.Entities.Count > 0)
                         {
@@ -1051,7 +1092,6 @@ namespace DataIngestor
                             entity["ljr_webresourceid"] = modification.WebResourceId.ToString();
                             entity["ljr_webresourcename"] = modification.WebResourceName;
                             entity["ljr_modificationtype"] = ((int)modification.ModificationType).ToString();
-                            //entity["ljr_modificationtypename"] = modification.ModificationType.ToString();
                             entity["ljr_modificationvalue"] = modification.ModificationValue;
                             entity["ljr_javascriptcode"] = modification.JavaScriptCode;
                             if (modification.LineNumber.HasValue)
@@ -1302,11 +1342,14 @@ namespace DataIngestor
         public string DisplayName { get; set; }
         public string Content { get; set; }
         public string DependencyXml { get; set; }
-        public string Type { get; set; }
         public List<DataDictionaryJavaScriptFieldModification> FieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
         public List<string> ApiPatterns { get; set; } = new List<string>();
         public List<WebResourceDependency> ParsedDependencies { get; private set; } = new List<WebResourceDependency>();
         public string ParsedDependenciesJson => JsonConvert.SerializeObject(ParsedDependencies);
+
+        // Used for tracking, but not saved to Dataverse
+        public HashSet<string> ModifiedTables { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // NOT SAVED TO DATAVERSE
+        public HashSet<string> ModifiedAttributes { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // NOT SAVED TO DATAVERSE
 
         public void ParseDependencies()
         {
@@ -1329,9 +1372,12 @@ namespace DataIngestor
                     dependency.attributeType = attributeElement.Attribute("attributeType")?.Value;
                     dependency.attributeLogicalName = attributeElement.Attribute("attributeLogicalName")?.Value;
                     ParsedDependencies.Add(dependency);
-                    //Console.WriteLine($"Parsing dependency: Type={dependency.DependencyType}");
 
-
+                    // Track tables and attributes from dependencies  
+                    if (!string.IsNullOrWhiteSpace(dependency.entityName))
+                        ModifiedTables.Add(dependency.entityName);
+                    if (!string.IsNullOrWhiteSpace(dependency.attributeLogicalName))
+                        ModifiedAttributes.Add(dependency.attributeLogicalName);
                 }
             }
         }
@@ -1347,8 +1393,6 @@ namespace DataIngestor
         public Guid? AttributeId { get; set; }
         public string attributeType { get; set; }
         public string attributeLogicalName { get; set; }
-
-
     }
 }
 

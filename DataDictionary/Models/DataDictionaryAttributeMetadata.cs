@@ -19,9 +19,13 @@ namespace DataDictionary.Models
         public Int64? MinValue { get; set; }
         public Int64? MaxValue { get; set; }
         public Int32? Precision { get; set; }
-        public string OptionSet { get; set; }
-        public string Value { get; set; }
+        public string OptionSet { get; set; } // NOT SAVED TO DATAVERSE (unless mapped in SaveToDataverse)
+        public string Value { get; set; } // NOT SAVED TO DATAVERSE (unless mapped in SaveToDataverse)
         public string Description { get; set; }
         public Int32? LangCode { get; set; }
+        public string ExtensionData { get; set; } // UNUSED: Not set or saved, recommend removal
+        public string AttributeTypeName { get; set; } // NOT SAVED TO DATAVERSE (unless mapped in SaveToDataverse)
+        public string AutoNumberFormat { get; set; } // NOT SAVED TO DATAVERSE (unless mapped in SaveToDataverse)
+        public bool? CanModifiedAdditionalSettings { get; set; } // NOT SAVED TO DATAVERSE (unless mapped in SaveToDataverse)
     }
 }
