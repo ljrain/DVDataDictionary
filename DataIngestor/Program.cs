@@ -1,20 +1,32 @@
 ﻿using System;
 using Microsoft.Xrm.Tooling.Connector;
 using Microsoft.Xrm.Sdk;
+using System.Configuration;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json; // Add this namespace
 
 namespace DataIngestor
 {
     internal class Program
     {
-        
-        public static string CRMURL = "https://loudev3.crm.dynamics.com"; 
-        public static string CLIENTID = "88b9ffc2-7bff-4a5b-8c28-9696906a9d63";
-        public static string CLIENTSECRET = "yFD8Q~feXPu58g9_LHWlkwiy1fHiinbvu~xdmb0u";
-        public static string TENANTID = "e362c86f-e64a-4e58-b26a-c8bf314b1093";
+        public static string CRMURL;
+        public static string CLIENTID;
+        public static string CLIENTSECRET;
+        public static string TENANTID;
 
         static void Main(string[] args)
         {
-            // Check if test mode is requested
+            // Load configuration from appsettings.json  
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true) // Requires Microsoft.Extensions.Configuration.Json
+                .Build();
+
+            CRMURL = configuration["CRMURL"];
+            CLIENTID = configuration["CLIENTID"];
+            CLIENTSECRET = configuration["CLIENTSECRET"];
+            TENANTID = configuration["TENANTID"];
+
+            // Check if test mode is requested  
             if (args.Length > 0 && args[0].ToLower() == "test")
             {
                 Console.WriteLine("Running in test mode...");
@@ -24,18 +36,13 @@ namespace DataIngestor
                 return;
             }
 
-            string crmUrl = "https://loudev3.crm.dynamics.com"; // Changed public to local scope
-            string clientId = "88b9ffc2-7bff-4a5b-8c28-9696906a9d63";
-            string clientSecret = "yFD8Q~feXPu58g9_LHWlkwiy1fHiinbvu~xdmb0u";
-            string tenantId = "e362c86f-e64a-4e58-b26a-c8bf314b1093";
-
             string connectionString = $@"  
-                    AuthType=ClientSecret;  
-                    Url={crmUrl};  
-                    ClientId={clientId};  
-                    ClientSecret={clientSecret};  
-                    TenantId={tenantId};  
-                ";
+                            AuthType=ClientSecret;  
+                            Url={CRMURL};  
+                            ClientId={CLIENTID};  
+                            ClientSecret={CLIENTSECRET};  
+                            TenantId={TENANTID};  
+                        ";
 
             using (var serviceClient = new CrmServiceClient(connectionString))
             {
@@ -44,12 +51,10 @@ namespace DataIngestor
                     Console.WriteLine("Connected to Dynamics CRM!");
                     // You can now use serviceClient to interact with CRM  
 
-                    string[] pars = { "SampleSolution" }; // Replace with your actual solution names
-                                                                                  
+                    string[] pars = { "SampleSolution" }; // Replace with your actual solution names  
+
                     InjestorV2 injestor = new InjestorV2(serviceClient);
                     injestor.ProcessSolutions(pars);
-
-
                 }
                 else
                 {
