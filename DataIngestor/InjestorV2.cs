@@ -128,7 +128,11 @@ namespace DataIngestor
                     _ddSolutions["SampleSolution"].WebResources.Last().ParsedDependencies.AddRange(webRes.ParsedDependencies.Select(dep => new DataDictionary.Models.WebResourceDependency
                     {
                         ComponentType = dep.AttributeType, // Map DependencyType to ComponentType
-                        AttributeName = dep.EntityName  // Map DependencyName to AttributeName
+                        AttributeName = dep.AttributeName,  // Map DependencyName to AttributeName
+                        AttributeId = dep.AttributeId, // Map EntityId to AttributeId
+                        AttributeLogicalName = dep.AttributeLogicalName, // Map EntityLogicalName to AttributeLogicalName
+                        EntityName = dep.EntityName, // Map EntityName to EntityName
+                        AttributeType = dep.AttributeType // Map AttributeType to AttributeType
                     }));
                     List<string> parsedJavaScript = ParseJavaScript(webRes.Content, webRes); // Parse the JavaScript content for Dataverse API events/actions and field modifications
                     Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions and {webRes.FieldModifications.Count} field modifications from Web Resource: {webRes.DisplayName}");
@@ -142,7 +146,7 @@ namespace DataIngestor
                 SaveToDataverse();
 
                 timerGlobal.Stop(); // Stop the timer
-                Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
+                 Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
             }
 
             #region Display Web Resource Modifications
@@ -183,6 +187,25 @@ namespace DataIngestor
                     Console.WriteLine();
                 }
             }
+            #endregion
+
+
+
+            #region Group models together based on Entity and Attribute metadata
+
+            foreach (var ddSolution in _ddSolutions.Values)
+            {
+                Console.WriteLine($"Solution: {ddSolution.UniqueName}");
+                foreach (var entity in ddSolution.Entities)
+                {
+                    Console.WriteLine($"  Entity: {entity.LogicalName} ({entity.EntityId})");
+                    foreach (var attribute in entity.Attributes)
+                    {
+                        Console.WriteLine($"    Attribute: {attribute.LogicalName} ({attribute.AttributeId})");
+                    }
+                }
+            }
+
             #endregion
         }
 
@@ -1091,38 +1114,45 @@ namespace DataIngestor
                         entity["ljr_attributelogicalname"] = dependency.AttributeLogicalName;
                     if (!string.IsNullOrWhiteSpace(dependency.AttributeType))
                         entity["ljr_componenttype"] = dependency.AttributeType;
-
-                    var query = new QueryExpression("ljr_webresourcedependency")
+                    if (!string.IsNullOrWhiteSpace(dependency.EntityName) && !string.IsNullOrWhiteSpace(dependency.AttributeLogicalName))
                     {
-                        ColumnSet = new ColumnSet("ljr_webresourcedependencyid"),
-                        Criteria = new FilterExpression
+                        entity["ljr_webresourcedependencyname"] = dependency.EntityName.ToString() + "-" + dependency.AttributeLogicalName.ToString();
+
+                        //    entity["ljr_attributemetadatalookup"] = new EntityReference("ljr_datadictionaryattributemetadata", dependency/);
+                        //}
+
+                        var query = new QueryExpression("ljr_webresourcedependency")
                         {
-                            FilterOperator = LogicalOperator.And
+                            ColumnSet = new ColumnSet("ljr_webresourcedependencyid"),
+                            Criteria = new FilterExpression
+                            {
+                                FilterOperator = LogicalOperator.And
+                            }
+                        };
+                        query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResourceRecordId);
+
+                        // Use attributeId if available, else fallback to attributeLogicalName+entityName
+                        if (dependency.AttributeId.HasValue)
+                            query.Criteria.AddCondition("ljr_attributeid", ConditionOperator.Equal, dependency.AttributeId.Value.ToString());
+                        else if (!string.IsNullOrWhiteSpace(dependency.AttributeLogicalName) && !string.IsNullOrWhiteSpace(dependency.EntityName))
+                        {
+                            query.Criteria.AddCondition("ljr_attributelogicalname", ConditionOperator.Equal, dependency.AttributeLogicalName);
+                            query.Criteria.AddCondition("ljr_entityname", ConditionOperator.Equal, dependency.EntityName);
                         }
-                    };
-                    query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResourceRecordId);
 
-                    // Use attributeId if available, else fallback to attributeLogicalName+entityName
-                    if (dependency.AttributeId.HasValue)
-                        query.Criteria.AddCondition("ljr_attributeid", ConditionOperator.Equal, dependency.AttributeId.Value.ToString());
-                    else if (!string.IsNullOrWhiteSpace(dependency.AttributeLogicalName) && !string.IsNullOrWhiteSpace(dependency.EntityName))
-                    {
-                        query.Criteria.AddCondition("ljr_attributelogicalname", ConditionOperator.Equal, dependency.AttributeLogicalName);
-                        query.Criteria.AddCondition("ljr_entityname", ConditionOperator.Equal, dependency.EntityName);
-                    }
+                        var result = _service.RetrieveMultiple(query);
 
-                    var result = _service.RetrieveMultiple(query);
-
-                    if (result.Entities.Count > 0)
-                    {
-                        // Update existing record
-                        entity.Id = result.Entities[0].Id;
-                        _service.Update(entity);
-                    }
-                    else
-                    {
-                        // Create new record
-                        _service.Create(entity);
+                        if (result.Entities.Count > 0)
+                        {
+                            // Update existing record
+                            entity.Id = result.Entities[0].Id;
+                            _service.Update(entity);
+                        }
+                        else
+                        {
+                            // Create new record
+                            _service.Create(entity);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -1171,7 +1201,7 @@ namespace DataIngestor
                             entity["ljr_modificationtype"] = modification.ModificationType.ToString();
                             entity["ljr_modificationvalue"] = modification.ModificationValue;
                             entity["ljr_javascriptcode"] = modification.JavaScriptCode;
-                            entity["ljr_lineno"] = modification.LineNumber;
+                            entity["ljr_linenumber"] = modification.LineNumber;
                             entity["ljr_notes"] = modification.Notes;
                             entity["ljr_parsedon"] = modification.ParsedOn;
 
