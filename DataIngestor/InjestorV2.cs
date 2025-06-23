@@ -7,7 +7,9 @@ using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Organization;
 using Microsoft.Xrm.Sdk.Query;
+using Microsoft.Xrm.Sdk.Workflow;
 using Microsoft.Xrm.Tooling.Connector;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,6 +20,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Workflow.Runtime.Tracking;
+using System.Xml.Linq;
 
 namespace DataIngestor
 {
@@ -52,11 +55,11 @@ namespace DataIngestor
             {
                 Console.WriteLine($"Processing Solution: {ddSolution.UniqueName}");
                 GetComponentsInSolution(ddSolution);
-                
+
 
             }
             ProcessEntities();
-            
+
             Console.WriteLine(timerGlobal.Elapsed.ToString());
 
             _ddSolutions["SampleSolution"].GetLogicalEntitiesFromSolutions();
@@ -67,8 +70,22 @@ namespace DataIngestor
             {
                 Console.WriteLine($"Found {webResourceObjectIds.Length} Web Resource Object IDs to process.");
                 var webResources = GetWebResourcesByObjectIds(webResourceObjectIds);
-                foreach (var webResource in webResources)
+                foreach (var webResource in webResources) // Rename the outer loop variable to avoid conflict
                 {
+                    foreach (var ddSolution in _ddSolutions.Values) // Correctly define 'ddSolution' in the outer loop
+                    {
+                        foreach (var resource in ddSolution.WebResources) // Use 'ddSolution' from the outer loop
+                        {
+                            if (resource.FieldModifications == null)
+                                continue;
+
+                            foreach (var modification in resource.FieldModifications)
+                            {
+                                // Process modifications here
+                            }
+                        }
+                    }
+
                     Console.WriteLine($"Found Web Resource: {webResource.GetAttributeValue<string>("displayname")} ({webResource.GetAttributeValue<Guid>("webresourceidunique")})");
 
                     string base64Content = webResource.GetAttributeValue<string>("content");
@@ -78,33 +95,54 @@ namespace DataIngestor
                     webRes.WebResourceId = webResource.Id;
                     webRes.DisplayName = webResource.Attributes["name"].ToString();
                     webRes.Content = javascript;
+                    webRes.DependencyXml = webResource.GetAttributeValue<string>("dependencyxml") ?? string.Empty;
 
-                    _ddSolutions["SampleSolution"].WebResources.Add(webRes);
+                    webRes.ParseDependencies(); // Parse the DependencyXml and populate ParsedDependencies
+
+                    _ddSolutions["SampleSolution"].WebResources.Add(new DataDictionary.Models.DataDictionaryWebResource
+                    {
+                        WebResourceId = webRes.WebResourceId,
+                        DisplayName = webRes.DisplayName,
+                        Content = webRes.Content,
+                        DependencyXml = webRes.DependencyXml,
+                        Type = webRes.Type,
+                        FieldModifications = webRes.FieldModifications,
+                        ApiPatterns = webRes.ApiPatterns
+                    });
+
+                    // Populate the ParsedDependencies list separately using the `AddRange` method.
+                    _ddSolutions["SampleSolution"].WebResources.Last().ParsedDependencies.AddRange(webRes.ParsedDependencies.Select(dep => new DataDictionary.Models.WebResourceDependency
+                    {
+                        ComponentType = dep.attributeType, // Map DependencyType to ComponentType
+                        AttributeName = dep.attributeName  // Map DependencyName to AttributeName
+
+                    }));
+                    _ddSolutions["SampleSolution"].WebResources.Last().ParsedDependencies.AddRange(webRes.ParsedDependencies.Select(dep => new DataDictionary.Models.WebResourceDependency
+                    {
+                        ComponentType = dep.attributeType, // Map DependencyType to ComponentType
+                        AttributeName = dep.entityName  // Map DependencyName to AttributeName
+                    }));
                     List<string> parsedJavaScript = ParseJavaScript(webRes.Content, webRes); // Parse the JavaScript content for Dataverse API events/actions and field modifications
                     Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions and {webRes.FieldModifications.Count} field modifications from Web Resource: {webRes.DisplayName}");
                 }
-            }
-            else
-            {
-                Console.WriteLine("No Web Resource Object IDs found to process.");
-            }
-            #endregion 
+                #endregion
 
-            SaveJavascriptToDataverse(); // Save web resources to Dataverse
-            CorrelateJavaScriptModificationsWithAttributes(); // Correlate JS modifications with attribute metadata
-            LogSchema();
-            Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
-            SaveToDataverse();
+                SaveJavascriptToDataverse(); // Save web resources to Dataverse
+                CorrelateJavaScriptModificationsWithAttributes(); // Correlate JS modifications with attribute metadata
+                LogSchema();
+                Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
+                SaveToDataverse();
 
-            timerGlobal.Stop(); // Stop the timer
-            Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
+                timerGlobal.Stop(); // Stop the timer
+                Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
+            }
         }
 
 
         #region Private Methods
 
         private string[] GetWebResourceObjectIds()
-        { 
+        {
             List<string> objectIds = new List<string>();
             foreach (var ddSolution in _ddSolutions.Values)
             {
@@ -115,7 +153,7 @@ namespace DataIngestor
                         objectIds.Add(ddComponent.ObjectId.ToString());
                     }
                 }
-            }   
+            }
             return objectIds.ToArray();
         }
 
@@ -187,8 +225,8 @@ namespace DataIngestor
                     RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
                 };
                 ddSolution.AddComponent(ddComponent);
-//                if (ddComponent.ComponentType == 1)
-                    
+                //                if (ddComponent.ComponentType == 1)
+
 
                 Console.WriteLine($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Object Id: {ddComponent.ObjectId}");
             }
@@ -379,12 +417,14 @@ namespace DataIngestor
                 @"Xrm\.WebApi\.retrieveRecord",
                 @"Xrm\.WebApi\.updateRecord",
                 @"Xrm\.WebApi\.createRecord",
-                @"Xrm\.WebApi\.deleteRecord"
+                @"Xrm\.WebApi\.deleteRecord",
+                @"Xrm\.Api\.execute",
+                @"Xrm\.WebApi\.retrieveMultipleRecords"
             };
 
             foreach (var pattern in patterns)
             {
-                var matches = Regex.Matches(script, pattern);
+                var matches = System.Text.RegularExpressions.Regex.Matches(script, pattern);
                 if (matches.Count > 0)
                 {
                     found.Add(pattern);
@@ -400,7 +440,7 @@ namespace DataIngestor
 
             // Legacy hidden field parsing for backward compatibility
             var hiddenFields = webResource?.FieldModifications?
-                .Where(fm => fm.ModificationType == JavaScriptModificationType.Visibility && 
+                .Where(fm => fm.ModificationType == JavaScriptModificationType.Visibility &&
                            fm.ModificationValue?.ToLower() == "false")
                 .Select(fm => fm.FieldName)
                 .ToList() ?? new List<string>();
@@ -499,7 +539,7 @@ namespace DataIngestor
             for (int lineIndex = 0; lineIndex < scriptLines.Length; lineIndex++)
             {
                 var line = scriptLines[lineIndex];
-                
+
                 // Process primary patterns first
                 foreach (var pattern in patterns)
                 {
@@ -611,7 +651,7 @@ namespace DataIngestor
                     foreach (EntityMetadata entity in results)
                     {
                         foreach (AttributeMetadata attribute in entity.Attributes)
-                        { 
+                        {
                             DataDictionaryAttributeMetadata ddMeta = new DataDictionaryAttributeMetadata();
                             ddMeta.Table = entity.LogicalName;
                             ddMeta.ColumnDisplay = (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label);
@@ -743,7 +783,7 @@ namespace DataIngestor
                                             break;
                                         case 1:
                                             om = PicklistAM.OptionSet.Options[0];
-                                            
+
                                             break;
                                         default:
                                             om = PicklistAM.OptionSet.Options[0];
@@ -834,16 +874,21 @@ namespace DataIngestor
                 // Process all field modifications from all web resources
                 foreach (var webResource in ddSolution.WebResources)
                 {
+                    if (webResource.FieldModifications == null)
+                        continue;
+
                     foreach (var modification in webResource.FieldModifications)
                     {
                         if (attributeLookup.TryGetValue(modification.FieldName, out var attributes))
                         {
                             foreach (var attribute in attributes)
                             {
-                                // --- Add the modification to the attribute's collection and set parent reference ---
-                                attribute.JavaScriptFieldModifications.Add(modification);
+                                // Add the modification to the attribute's collection and set parent reference
+                                if (!attribute.JavaScriptFieldModifications.Contains(modification))
+                                    attribute.JavaScriptFieldModifications.Add(modification);
                                 modification.ParentAttribute = attribute;
-                                // ----------------------------------------------------------
+                                modification.AttributeTable = attribute.Table;
+                                modification.AttributeLogicalName = attribute.ColumnLogical;
 
                                 // Update attribute metadata based on JavaScript modifications
                                 switch (modification.ModificationType)
@@ -933,6 +978,9 @@ namespace DataIngestor
                         //entity["webresourceidunique"] = webResource.WebResourceId; // Use unique ID for updates if available
                         entity["ljr_displayname"] = webResource.DisplayName;
                         entity["ljr_javascript"] = webResource.Content;
+                        entity["ljr_dependencyxml"] = webResource.DependencyXml;
+                        if (!string.IsNullOrWhiteSpace(webResource.ParsedDependenciesJson))
+                            entity["ljr_parseddependencies"] = webResource.ParsedDependenciesJson;
                         //entity["webresourcetype"] = new OptionSetValue(61); // Assuming 61 is the type for 
 
                         if (result.Entities.Count > 0)
@@ -975,6 +1023,9 @@ namespace DataIngestor
 
                 foreach (var webResource in ddSolution.WebResources)
                 {
+                    if (webResource.FieldModifications == null)
+                        continue;
+
                     foreach (var modification in webResource.FieldModifications)
                     {
                         try
@@ -1244,4 +1295,60 @@ namespace DataIngestor
         #endregion
 
     }
+
+    public class DataDictionaryWebResource
+    {
+        public Guid WebResourceId { get; set; }
+        public string DisplayName { get; set; }
+        public string Content { get; set; }
+        public string DependencyXml { get; set; }
+        public string Type { get; set; }
+        public List<DataDictionaryJavaScriptFieldModification> FieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
+        public List<string> ApiPatterns { get; set; } = new List<string>();
+        public List<WebResourceDependency> ParsedDependencies { get; private set; } = new List<WebResourceDependency>();
+        public string ParsedDependenciesJson => JsonConvert.SerializeObject(ParsedDependencies);
+
+        public void ParseDependencies()
+        {
+            ParsedDependencies.Clear();
+
+            if (string.IsNullOrWhiteSpace(DependencyXml))
+                return;
+
+            var xml = XDocument.Parse(DependencyXml);
+            foreach (var dependencyElement in xml.Descendants("Dependency"))
+            {
+                var componentType = dependencyElement.Attribute("componentType")?.Value;
+
+                foreach (var attributeElement in dependencyElement.Elements("Attribute"))
+                {
+                    var dependency = new WebResourceDependency();
+                    dependency.entityName = attributeElement.Attribute("entityName")?.Value;
+                    dependency.attributeName = attributeElement.Attribute("attributeName")?.Value;
+                    dependency.AttributeId = Guid.TryParse(attributeElement.Attribute("attributeId")?.Value, out var attrId) ? (Guid?)attrId : null;
+                    dependency.attributeType = attributeElement.Attribute("attributeType")?.Value;
+                    dependency.attributeLogicalName = attributeElement.Attribute("attributeLogicalName")?.Value;
+                    ParsedDependencies.Add(dependency);
+                    //Console.WriteLine($"Parsing dependency: Type={dependency.DependencyType}");
+
+
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// <Attribute attributeId="4d8847bf-14f9-4a42-91e4-22dca4efa448" attributeName="Address 1: Fax" entityName="account" attributeType="String" attributeLogicalName="address1_fax"/></Dependency>
+    /// </summary>
+    public class WebResourceDependency
+    {
+        public string entityName { get; set; }
+        public string attributeName { get; set; }
+        public Guid? AttributeId { get; set; }
+        public string attributeType { get; set; }
+        public string attributeLogicalName { get; set; }
+
+
+    }
 }
+

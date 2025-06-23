@@ -11,41 +11,37 @@ namespace DataDictionary.Models
 {
     public class DataDictionarySolution
     {
-
-        public List<DataDictionaryWebResource> WebResources { get; set; } = new List<DataDictionaryWebResource>();
-
-
-        public List<DataDictionaryAttributeMetadata> AttributeMetadata { get; set; } = new List<DataDictionaryAttributeMetadata>();
-
         public string FriendlyName { get; set; }
         public string SolutionId { get; set; }
         public string UniqueName { get; set; }
 
-        public IEnumerable<DataDictionarySolutionComponent> Components { get; set; } = new List<DataDictionarySolutionComponent>();
+        public List<DataDictionarySolutionComponent> Components { get; set; } = new List<DataDictionarySolutionComponent>();
+        public List<DataDictionaryEntity> Entities { get; set; } = new List<DataDictionaryEntity>();
+        public List<DataDictionaryWebResource> WebResources { get; set; } = new List<DataDictionaryWebResource>();
+        public List<DataDictionaryAttributeMetadata> AttributeMetadata { get; set; } = new List<DataDictionaryAttributeMetadata>();
 
         public void AddComponent(DataDictionarySolutionComponent component)
         {
             if (component == null) throw new ArgumentNullException(nameof(component));
-            ((List<DataDictionarySolutionComponent>)Components).Add(component);
+            Components.Add(component);
         }
+
         public void RemoveComponent(DataDictionarySolutionComponent component)
         {
             if (component == null) throw new ArgumentNullException(nameof(component));
-            ((List<DataDictionarySolutionComponent>)Components).Remove(component);
+            Components.Remove(component);
         }
-
-        public IEnumerable<DataDictionaryEntity> Entities { get; set; } = new List<DataDictionaryEntity>();
 
         public void AddEntity(DataDictionaryEntity entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
-            ((List<DataDictionaryEntity>)Entities).Add(entity);
+            Entities.Add(entity);
         }
 
         public void RemoveEntity(DataDictionaryEntity entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
-            ((List<DataDictionaryEntity>)Entities).Remove(entity);
+            Entities.Remove(entity);
         }
 
         public void AddAttribute(DataDictionarySolution ddSolution, DataDictionaryAttribute ddAttr)
@@ -68,7 +64,6 @@ namespace DataDictionary.Models
         {
             return Entities.Select(e => e.LogicalName).ToArray();
         }
-
     }
 }
 
