@@ -28,7 +28,7 @@ namespace DataIngestor
     {
         public InjestorV2(IOrganizationService servClient)
         {
-            _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
+                _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
         }
 
         #region Private Fields
@@ -99,6 +99,15 @@ namespace DataIngestor
 
                     webRes.ParseDependencies(); // Parse the DependencyXml and populate ParsedDependencies
 
+                    // --- FIX: Assign the result of ParseFieldModifications to FieldModifications property ---
+                    webRes.FieldModifications = ParseFieldModifications(webRes.Content, webRes.WebResourceId, webRes.DisplayName);
+
+                    // Optionally, add debug logging:
+                    Console.WriteLine($"[DEBUG] FieldModifications count for {webRes.DisplayName}: {webRes.FieldModifications.Count}");
+
+                    // If ParseJavaScript is still needed for API pattern detection, call it separately and assign its result to ApiPatterns:
+                    webRes.ApiPatterns = ParseJavaScript(webRes.Content, webRes);
+
                     _ddSolutions["SampleSolution"].WebResources.Add(new DataDictionary.Models.DataDictionaryWebResource
                     {
                         WebResourceId = webRes.WebResourceId,
@@ -112,14 +121,14 @@ namespace DataIngestor
                     // Populate the ParsedDependencies list separately using the `AddRange` method.
                     _ddSolutions["SampleSolution"].WebResources.Last().ParsedDependencies.AddRange(webRes.ParsedDependencies.Select(dep => new DataDictionary.Models.WebResourceDependency
                     {
-                        ComponentType = dep.attributeType, // Map DependencyType to ComponentType
-                        AttributeName = dep.attributeName  // Map DependencyName to AttributeName
+                        ComponentType = dep.AttributeType, // Map DependencyType to ComponentType
+                        AttributeName = dep.AttributeName  // Map DependencyName to AttributeName
 
                     }));
                     _ddSolutions["SampleSolution"].WebResources.Last().ParsedDependencies.AddRange(webRes.ParsedDependencies.Select(dep => new DataDictionary.Models.WebResourceDependency
                     {
-                        ComponentType = dep.attributeType, // Map DependencyType to ComponentType
-                        AttributeName = dep.entityName  // Map DependencyName to AttributeName
+                        ComponentType = dep.AttributeType, // Map DependencyType to ComponentType
+                        AttributeName = dep.EntityName  // Map DependencyName to AttributeName
                     }));
                     List<string> parsedJavaScript = ParseJavaScript(webRes.Content, webRes); // Parse the JavaScript content for Dataverse API events/actions and field modifications
                     Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions and {webRes.FieldModifications.Count} field modifications from Web Resource: {webRes.DisplayName}");
@@ -290,7 +299,7 @@ namespace DataIngestor
                             {
                                 Conditions =
                                 {
-                                    new ConditionExpression("entityid", ConditionOperator.Equal, ddComponent.ObjectId) // Corrected spelling error: entityid -> entityId
+                                    new ConditionExpression("entityid", ConditionOperator.Equal, ddComponent.ObjectId)
                                 }
                             }
                         };
@@ -302,7 +311,7 @@ namespace DataIngestor
                             {
                                 Name = entity.GetAttributeValue<string>("name"),
                                 ObjectTypeCode = entity.GetAttributeValue<int>("objecttypecode"),
-                                EntityId = entity.GetAttributeValue<Guid>("entityid"), // Corrected spelling error: entityid -> entityId
+                                EntityId = entity.GetAttributeValue<Guid>("entityid"),
                                 EntitySetName = entity.GetAttributeValue<string>("entitysetname"),
                                 BaseTableName = entity.GetAttributeValue<string>("basetablename"),
                                 CollectionName = entity.GetAttributeValue<string>("collectionname"),
@@ -1024,19 +1033,24 @@ namespace DataIngestor
                         if (!string.IsNullOrWhiteSpace(webResource.ParsedDependenciesJson))
                             entity["ljr_parseddependencies"] = webResource.ParsedDependenciesJson;
 
+                        Guid webResourceRecordId;
                         if (result.Entities.Count > 0)
                         {
                             // Update existing record
                             entity.Id = result.Entities[0].Id;
                             _service.Update(entity);
+                            webResourceRecordId = entity.Id;
                             Console.WriteLine($"Updated Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
                         }
                         else
                         {
                             // Create new record
-                            _service.Create(entity);
+                            webResourceRecordId = _service.Create(entity);
                             Console.WriteLine($"Created Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
                         }
+
+                        // Save dependencies for this web resource
+                        SaveWebResourceDependenciesToDataverse(webResource, webResourceRecordId);
                     }
                     catch (Exception ex)
                     {
@@ -1050,28 +1064,93 @@ namespace DataIngestor
         }
 
         /// <summary>
-        /// Saves JavaScript field modifications to Dataverse in a separate table (Upsert)
+        /// Saves each dependency of a web resource to a related table in Dataverse.
         /// </summary>
+        /// <param name="webResource">The DataDictionaryWebResource instance.</param>
+        /// <param name="webResourceRecordId">The Dataverse record ID of the parent web resource.</param>
+        private void SaveWebResourceDependenciesToDataverse(DataDictionary.Models.DataDictionaryWebResource webResource, Guid webResourceRecordId)
+        {
+            if (webResource.ParsedDependencies == null || webResource.ParsedDependencies.Count == 0)
+                return;
+
+            foreach (var dependency in webResource.ParsedDependencies)
+            {
+                try
+                {
+                    var entity = new Entity("ljr_webresourcedependency");
+                    entity["ljr_webresourceid"] = new EntityReference("ljr_webresource", webResourceRecordId);
+                    if (dependency.AttributeId.HasValue)
+                        entity["ljr_attributeid"] = dependency.AttributeId.Value.ToString();
+                    if (!string.IsNullOrWhiteSpace(dependency.AttributeName))
+                        entity["ljr_attributename"] = dependency.AttributeName;
+                    if (!string.IsNullOrWhiteSpace(dependency.EntityName))
+                        entity["ljr_entityname"] = dependency.EntityName;
+                    if (!string.IsNullOrWhiteSpace(dependency.AttributeType))
+                        entity["ljr_attributetype"] = dependency.AttributeType;
+                    if (!string.IsNullOrWhiteSpace(dependency.AttributeLogicalName))
+                        entity["ljr_attributelogicalname"] = dependency.AttributeLogicalName;
+                    if (!string.IsNullOrWhiteSpace(dependency.AttributeType))
+                        entity["ljr_componenttype"] = dependency.AttributeType;
+
+                    var query = new QueryExpression("ljr_webresourcedependency")
+                    {
+                        ColumnSet = new ColumnSet("ljr_webresourcedependencyid"),
+                        Criteria = new FilterExpression
+                        {
+                            FilterOperator = LogicalOperator.And
+                        }
+                    };
+                    query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResourceRecordId);
+
+                    // Use attributeId if available, else fallback to attributeLogicalName+entityName
+                    if (dependency.AttributeId.HasValue)
+                        query.Criteria.AddCondition("ljr_attributeid", ConditionOperator.Equal, dependency.AttributeId.Value.ToString());
+                    else if (!string.IsNullOrWhiteSpace(dependency.AttributeLogicalName) && !string.IsNullOrWhiteSpace(dependency.EntityName))
+                    {
+                        query.Criteria.AddCondition("ljr_attributelogicalname", ConditionOperator.Equal, dependency.AttributeLogicalName);
+                        query.Criteria.AddCondition("ljr_entityname", ConditionOperator.Equal, dependency.EntityName);
+                    }
+
+                    var result = _service.RetrieveMultiple(query);
+
+                    if (result.Entities.Count > 0)
+                    {
+                        // Update existing record
+                        entity.Id = result.Entities[0].Id;
+                        _service.Update(entity);
+                    }
+                    else
+                    {
+                        // Create new record
+                        _service.Create(entity);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error saving dependency '{dependency.AttributeName}' for Web Resource '{webResource.DisplayName}': {ex.Message}");
+                }
+            }
+        }
+
         private void SaveJavaScriptFieldModifications()
         {
             Console.WriteLine("Saving JavaScript field modifications to Dataverse...");
-            int modificationCount = 0;
 
             foreach (var ddSolution in _ddSolutions.Values)
             {
-                if (ddSolution.WebResources == null)
+                if (ddSolution.WebResources == null || ddSolution.WebResources.Count == 0)
                     continue;
 
                 foreach (var webResource in ddSolution.WebResources)
                 {
-                    if (webResource.FieldModifications == null)
+                    if (webResource.FieldModifications == null || webResource.FieldModifications.Count == 0)
                         continue;
 
                     foreach (var modification in webResource.FieldModifications)
                     {
                         try
                         {
-                            // --- Upsert logic: use WebResourceId + FieldName + ModificationType as unique key ---
+                            // Upsert logic: use web resource + field name + modification type as unique key
                             var query = new QueryExpression("ljr_javascriptfieldmodification")
                             {
                                 ColumnSet = new ColumnSet("ljr_javascriptfieldmodificationid"),
@@ -1080,22 +1159,19 @@ namespace DataIngestor
                                     FilterOperator = LogicalOperator.And
                                 }
                             };
-                            query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, modification.WebResourceId.ToString());
+                            query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResource.WebResourceId.ToString());
                             query.Criteria.AddCondition("ljr_fieldname", ConditionOperator.Equal, modification.FieldName);
-                            query.Criteria.AddCondition("ljr_modificationtype", ConditionOperator.Equal, ((int)modification.ModificationType).ToString());
+                            query.Criteria.AddCondition("ljr_modificationtype", ConditionOperator.Equal, modification.ModificationType.ToString());
 
                             var result = _service.RetrieveMultiple(query);
 
                             var entity = new Entity("ljr_javascriptfieldmodification");
-                            entity["ljr_name"] = modification.WebResourceName + " - " + modification.FieldName;
+                            entity["ljr_webresourceid"] = new EntityReference("ljr_webresource", webResource.WebResourceId);
                             entity["ljr_fieldname"] = modification.FieldName;
-                            entity["ljr_webresourceid"] = modification.WebResourceId.ToString();
-                            entity["ljr_webresourcename"] = modification.WebResourceName;
-                            entity["ljr_modificationtype"] = ((int)modification.ModificationType).ToString();
+                            entity["ljr_modificationtype"] = modification.ModificationType.ToString();
                             entity["ljr_modificationvalue"] = modification.ModificationValue;
                             entity["ljr_javascriptcode"] = modification.JavaScriptCode;
-                            if (modification.LineNumber.HasValue)
-                                entity["ljr_linenumber"] = modification.LineNumber.Value;
+                            entity["ljr_lineno"] = modification.LineNumber;
                             entity["ljr_notes"] = modification.Notes;
                             entity["ljr_parsedon"] = modification.ParsedOn;
 
@@ -1104,25 +1180,22 @@ namespace DataIngestor
                                 // Update existing record
                                 entity.Id = result.Entities[0].Id;
                                 _service.Update(entity);
-                                Console.WriteLine($"Updated JavaScript modification: {modification.WebResourceName} - {modification.FieldName} ({modification.ModificationType})");
+                                Console.WriteLine($"Updated JavaScript Field Modification: {modification.FieldName} ({modification.ModificationType})");
                             }
                             else
                             {
                                 // Create new record
                                 _service.Create(entity);
-                                Console.WriteLine($"Created JavaScript modification: {modification.WebResourceName} - {modification.FieldName} ({modification.ModificationType})");
+                                Console.WriteLine($"Created JavaScript Field Modification: {modification.FieldName} ({modification.ModificationType})");
                             }
-                            modificationCount++;
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Error saving JavaScript modification for field '{modification.FieldName}': {ex.Message}");
+                            Console.WriteLine($"Error saving JavaScript Field Modification '{modification.FieldName}' for Web Resource '{webResource.DisplayName}': {ex.Message}");
                         }
                     }
                 }
             }
-
-            Console.WriteLine($"Saved {modificationCount} JavaScript field modifications to Dataverse.");
         }
 
         private void SaveToDataverse()
@@ -1366,33 +1439,31 @@ namespace DataIngestor
                 foreach (var attributeElement in dependencyElement.Elements("Attribute"))
                 {
                     var dependency = new WebResourceDependency();
-                    dependency.entityName = attributeElement.Attribute("entityName")?.Value;
-                    dependency.attributeName = attributeElement.Attribute("attributeName")?.Value;
+                    dependency.EntityName = attributeElement.Attribute("entityName")?.Value;
+                    dependency.AttributeName = attributeElement.Attribute("attributeName")?.Value;
                     dependency.AttributeId = Guid.TryParse(attributeElement.Attribute("attributeId")?.Value, out var attrId) ? (Guid?)attrId : null;
-                    dependency.attributeType = attributeElement.Attribute("attributeType")?.Value;
-                    dependency.attributeLogicalName = attributeElement.Attribute("attributeLogicalName")?.Value;
+                    dependency.AttributeType = attributeElement.Attribute("attributeType")?.Value;
+                    dependency.AttributeLogicalName = attributeElement.Attribute("attributeLogicalName")?.Value;
                     ParsedDependencies.Add(dependency);
 
                     // Track tables and attributes from dependencies  
-                    if (!string.IsNullOrWhiteSpace(dependency.entityName))
-                        ModifiedTables.Add(dependency.entityName);
-                    if (!string.IsNullOrWhiteSpace(dependency.attributeLogicalName))
-                        ModifiedAttributes.Add(dependency.attributeLogicalName);
+                    if (!string.IsNullOrWhiteSpace(dependency.EntityName))
+                        ModifiedTables.Add(dependency.EntityName);
+                    if (!string.IsNullOrWhiteSpace(dependency.AttributeLogicalName))
+                        ModifiedAttributes.Add(dependency.AttributeLogicalName);
                 }
             }
         }
     }
 
-    /// <summary>
-    /// <Attribute attributeId="4d8847bf-14f9-4a42-91e4-22dca4efa448" attributeName="Address 1: Fax" entityName="account" attributeType="String" attributeLogicalName="address1_fax"/></Dependency>
-    /// </summary>
     public class WebResourceDependency
     {
-        public string entityName { get; set; }
-        public string attributeName { get; set; }
+        public string ComponentType { get; set; }
         public Guid? AttributeId { get; set; }
-        public string attributeType { get; set; }
-        public string attributeLogicalName { get; set; }
+        public string AttributeName { get; set; }
+        public string EntityName { get; set; }
+        public string AttributeType { get; set; }
+        public string AttributeLogicalName { get; set; }
     }
 }
 
