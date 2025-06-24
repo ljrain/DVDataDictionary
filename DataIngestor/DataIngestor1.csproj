@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}</ProjectGuid>
+    <ProjectGuid>{C4AA2CF7-474D-4BA4-88EA-8D2A70B7C5A4}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>DataIngestor</RootNamespace>
     <AssemblyName>DataIngestor</AssemblyName>
@@ -216,11 +216,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-<<<<<<< Updated upstream
     <Compile Include="InjestorV2.cs" />
-=======
-    <Compile Include="InjestorV2Refactored.cs" />
->>>>>>> Stashed changes
     <Compile Include="JavaScriptParsingTests.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
     <Compile Include="Models\DataDictionaryAttribute.cs" />
