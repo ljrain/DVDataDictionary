@@ -217,6 +217,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="InjestorV2.cs" />
+    <Compile Include="InjestorV2Refactored.cs" />
     <Compile Include="JavaScriptParsingTests.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
     <Compile Include="Models\DataDictionaryAttribute.cs" />
@@ -226,8 +227,16 @@
     <Compile Include="Models\DataDictionarySolutionComponent.cs" />
     <Compile Include="Models\DataDictionaryWebResource.cs" />
     <Compile Include="Models\WebResourceDependency.cs" />
+    <Compile Include="Processors\EntityProcessor.cs" />
+    <Compile Include="Processors\JavaScriptParser.cs" />
+    <Compile Include="Processors\SolutionProcessor.cs" />
+    <Compile Include="Processors\WebResourceProcessor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\DataverseService.cs" />
+    <Compile Include="Services\IDataverseService.cs" />
+    <Compile Include="Tests\MockDataverseService.cs" />
+    <Compile Include="Tests\RefactoredIngestorTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="appsettings.json">
