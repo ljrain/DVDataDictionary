@@ -5,7 +5,7 @@ VisualStudioVersion = 17.14.36202.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataDictionary", "DataDictionary\DataDictionary.csproj", "{DCA34771-8987-4A94-9C21-4EB9379B76B7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataIngestor", "DataIngestor\DataIngestor.csproj", "{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataIngestor1", "DataIngestor\DataIngestor1.csproj", "{C4AA2CF7-474D-4BA4-88EA-8D2A70B7C5A4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{DCA34771-8987-4A94-9C21-4EB9379B76B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCA34771-8987-4A94-9C21-4EB9379B76B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCA34771-8987-4A94-9C21-4EB9379B76B7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4AA2CF7-474D-4BA4-88EA-8D2A70B7C5A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4AA2CF7-474D-4BA4-88EA-8D2A70B7C5A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4AA2CF7-474D-4BA4-88EA-8D2A70B7C5A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4AA2CF7-474D-4BA4-88EA-8D2A70B7C5A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
