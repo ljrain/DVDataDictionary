@@ -216,11 +216,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-<<<<<<< Updated upstream
     <Compile Include="InjestorV2.cs" />
-=======
-    <Compile Include="InjestorV2Refactored.cs" />
->>>>>>> Stashed changes
     <Compile Include="JavaScriptParsingTests.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
     <Compile Include="Models\DataDictionaryAttribute.cs" />
