@@ -1,0 +1,13 @@
+﻿<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Input field -->
+  <rect x="10" y="20" width="44" height="12" rx="2" fill="#E0E0E0" stroke="#333" stroke-width="1.5"/>
+  <text x="14" y="29" font-size="5" fill="#333" font-family="Arial">Editable Field</text>
+
+  <!-- Pencil icon -->
+  <path d="M48 16l4 4-16 16h-4v-4L48 16z" fill="#999" stroke="#333" stroke-width="1"/>
+  <path d="M46 14l4 4" stroke="#333" stroke-width="1"/>
+
+  <!-- JS badge -->
+  <rect x="42" y="40" width="12" height="12" rx="2" fill="#CCCCCC" stroke="#333" stroke-width="1"/>
+  <text x="44" y="49" font-size="6" font-weight="bold" fill="#333" font-family="Arial">JS</text>
+</svg>

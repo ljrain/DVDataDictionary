@@ -4,7 +4,6 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-
     <ProjectGuid>{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>DataIngestor</RootNamespace>
@@ -237,6 +236,12 @@
     <None Include="obj\App.config" />
     <None Include="packages.config" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="images\attributemetadat_icon.svg" />
+    <Content Include="images\datadictionary_logo.svg" />
+    <Content Include="images\javascriptmodification_icon.svg" />
+    <Content Include="images\webresource_icon.svg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

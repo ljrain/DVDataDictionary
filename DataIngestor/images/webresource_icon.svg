@@ -1,0 +1,11 @@
+﻿<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- File shape -->
+  <rect x="12" y="8" width="40" height="48" rx="4" fill="#CCCCCC" stroke="#333333" stroke-width="2"/>
+  <!-- Folded corner -->
+  <polygon points="44,8 52,16 44,16" fill="#333333" opacity="0.2"/>
+  <!-- JS letters -->
+  <text x="20" y="42" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#333333">JS</text>
+  <!-- Web globe icon -->
+  <circle cx="48" cy="48" r="6" fill="#FFFFFF" stroke="#333333" stroke-width="1.5"/>
+  <path d="M42 48h12M48 42v12M44 44c2 2 4 2 8 0M44 52c2-2 4-2 8 0" stroke="#333333" stroke-width="1"/>
+</svg>

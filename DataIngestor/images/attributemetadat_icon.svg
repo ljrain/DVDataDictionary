@@ -1,0 +1,20 @@
+﻿<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main container -->
+  <rect x="8" y="8" width="48" height="48" rx="4" fill="#F5F5F5" stroke="#333" stroke-width="2"/>
+
+  <!-- Attribute name -->
+  <rect x="14" y="16" width="36" height="6" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+  <text x="16" y="21" font-size="4" fill="#333" font-family="Arial">Attribute Name</text>
+
+  <!-- Data type -->
+  <rect x="14" y="26" width="20" height="5" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+  <text x="16" y="30" font-size="4" fill="#333" font-family="Arial">Type: String</text>
+
+  <!-- Popup description box -->
+  <rect x="10" y="0" width="44" height="12" rx="2" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+  <text x="12" y="8" font-size="4" fill="#333" font-family="Arial">Description: Customer's full name</text>
+  <polygon points="30,12 34,12 32,16" fill="#333"/>
+
+  <!-- Optional icon -->
+  <circle cx="50" cy="28" r="2" fill="#333"/>
+</svg>
