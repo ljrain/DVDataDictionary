@@ -225,7 +225,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="InjestorV2.cs" />
+    <Compile Include="DataIngestorOrchestrator.cs" />
     <Compile Include="JavaScriptParsingTests.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
     <Compile Include="Models\DataDictionaryAttribute.cs" />
@@ -234,6 +234,7 @@
     <Compile Include="Models\DataDictionarySolution.cs" />
     <Compile Include="Models\DataDictionarySolutionComponent.cs" />
     <Compile Include="Models\DataDictionaryWebResource.cs" />
+    <Compile Include="Models\OperationResult.cs" />
     <Compile Include="Models\WebResourceDependency.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

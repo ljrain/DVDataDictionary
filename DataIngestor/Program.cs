@@ -75,7 +75,7 @@ namespace DataIngestor
 
                         string[] pars = { "SampleSolution" }; // Replace with your actual solution names  
 
-                        InjestorV2 injestor = new InjestorV2(serviceClient);
+                        DataIngestorOrchestrator injestor = new DataIngestorOrchestrator(serviceClient);
                         injestor.ProcessSolutions(pars);
                     }
                     else

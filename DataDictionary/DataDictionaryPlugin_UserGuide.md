@@ -2,7 +2,7 @@
 
 ## Overview
 
-The DataIngestor (InjestorV2) is a C#/.NET Framework 4.6.2 proof-of-concept tool for Dynamics 365/Dataverse environments. It automates the extraction, analysis, and correlation of solution metadata—including entities, attributes, and JavaScript web resources—directly from Dataverse. The tool is designed for both technical users and developers, and is intended to be extended or customized by clients for their own data governance, documentation, or impact analysis needs.
+The DataIngestor (DataIngestorOrchestrator) is a C#/.NET Framework 4.6.2 proof-of-concept tool for Dynamics 365/Dataverse environments. It automates the extraction, analysis, and correlation of solution metadataâ€”including entities, attributes, and JavaScript web resourcesâ€”directly from Dataverse. The tool is designed for both technical users and developers, and is intended to be extended or customized by clients for their own data governance, documentation, or impact analysis needs.
 
 ---
 
@@ -55,7 +55,7 @@ The DataIngestor (InjestorV2) is a C#/.NET Framework 4.6.2 proof-of-concept tool
 
 ## Usage Instructions
 
-1. **Configure Connection**: Instantiate `InjestorV2` with a valid `IOrganizationService` connection to your Dataverse environment.
+1. **Configure Connection**: Instantiate `DataIngestorOrchestrator` with a valid `IOrganizationService` connection to your Dataverse environment.
 2. **Run Processing**: Call `ProcessSolutions(string[] solutionUniqueNames)` with the unique names of the solutions you wish to analyze.
 3. **Review Output**: All results are saved to Dataverse custom tables. Use Advanced Find, Power BI, or custom reports to review the data dictionary, script impacts, and dependencies.
 

@@ -201,7 +201,7 @@ namespace DataIngestor
 
         /// <summary>
         /// Helper method to parse test scripts using the actual parsing logic
-        /// This simulates the ParseFieldModifications method from InjestorV2
+        /// This simulates the ParseFieldModifications method from DataIngestorOrchestrator
         /// </summary>
         private static List<DataDictionaryJavaScriptFieldModification> ParseTestScript(string script)
         {

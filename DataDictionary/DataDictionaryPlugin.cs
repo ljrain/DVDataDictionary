@@ -42,8 +42,8 @@ namespace DataDictionary
 
                 #endregion
 
-                InjestorV2 injestor = new InjestorV2(service);
-                tracingService.Trace("DataDictionaryPlugin: Created InjestorV2 instance.");
+                DataIngestorOrchestrator injestor = new DataIngestorOrchestrator(service);
+                tracingService.Trace("DataDictionaryPlugin: Created DataIngestorOrchestrator instance.");
                 injestor.ProcessSolutions();
 
 

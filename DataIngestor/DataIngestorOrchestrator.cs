@@ -26,13 +26,13 @@ using Serilog;
 
 namespace DataIngestor
 {
-    public class InjestorV2
+    public class DataIngestorOrchestrator
     {
-        public InjestorV2(IOrganizationService servClient)
+        public DataIngestorOrchestrator(IOrganizationService servClient)
         {
                 _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
                 // Create logger for this instance
-                _logger = Log.ForContext<InjestorV2>();
+                _logger = Log.ForContext<DataIngestorOrchestrator>();
         }
 
         #region Private Fields
