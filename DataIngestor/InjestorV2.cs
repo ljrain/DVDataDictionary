@@ -1038,7 +1038,7 @@ namespace DataIngestor
                         // --- Upsert logic: use ljr_displayname as unique key (adjust if you have a better unique key) ---
                         var query = new QueryExpression("ljr_webresource")
                         {
-                            ColumnSet = new ColumnSet("ljr_webresourceid"),
+                            ColumnSet = new ColumnSet("ljr_webresourceid","ljr_name","ljr_displayname"),
                             Criteria = new FilterExpression
                             {
                                 FilterOperator = LogicalOperator.And
@@ -1050,7 +1050,9 @@ namespace DataIngestor
 
                         var entity = new Entity("ljr_webresource");
                         //entity["webresourceidunique"] = webResource.WebResourceId; // Use unique ID for updates if available
+                        //entity["ljr_webresourceidunique"] = webResource.WebResourceId.ToString(); // Use string representation for consistency
                         entity["ljr_displayname"] = webResource.DisplayName;
+                        entity["ljr_name"] = webResource.DisplayName;
                         entity["ljr_javascript"] = webResource.Content;
                         entity["ljr_dependencyxml"] = webResource.DependencyXml;
                         if (!string.IsNullOrWhiteSpace(webResource.ParsedDependenciesJson))
@@ -1116,12 +1118,10 @@ namespace DataIngestor
                         entity["ljr_componenttype"] = dependency.AttributeType;
                     if (!string.IsNullOrWhiteSpace(dependency.EntityName) && !string.IsNullOrWhiteSpace(dependency.AttributeLogicalName))
                     {
-                        entity["ljr_webresourcedependencyname"] = dependency.EntityName.ToString() + "-" + dependency.AttributeLogicalName.ToString();
+                        entity["ljr_webresourcedependencyname"] = dependency.EntityName + "-" + dependency.AttributeLogicalName;
 
-                        //    entity["ljr_attributemetadatalookup"] = new EntityReference("ljr_datadictionaryattributemetadata", dependency/);
-                        //}
-
-                        var query = new QueryExpression("ljr_webresourcedependency")
+                        // Query 1: Check if ljr_webresourcedependency exists (update or insert)
+                        var dependencyQuery = new QueryExpression("ljr_webresourcedependency")
                         {
                             ColumnSet = new ColumnSet("ljr_webresourcedependencyid"),
                             Criteria = new FilterExpression
@@ -1129,23 +1129,42 @@ namespace DataIngestor
                                 FilterOperator = LogicalOperator.And
                             }
                         };
-                        query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResourceRecordId);
-
-                        // Use attributeId if available, else fallback to attributeLogicalName+entityName
+                        dependencyQuery.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResourceRecordId);
                         if (dependency.AttributeId.HasValue)
-                            query.Criteria.AddCondition("ljr_attributeid", ConditionOperator.Equal, dependency.AttributeId.Value.ToString());
+                            dependencyQuery.Criteria.AddCondition("ljr_attributeid", ConditionOperator.Equal, dependency.AttributeId.Value.ToString());
                         else if (!string.IsNullOrWhiteSpace(dependency.AttributeLogicalName) && !string.IsNullOrWhiteSpace(dependency.EntityName))
                         {
-                            query.Criteria.AddCondition("ljr_attributelogicalname", ConditionOperator.Equal, dependency.AttributeLogicalName);
-                            query.Criteria.AddCondition("ljr_entityname", ConditionOperator.Equal, dependency.EntityName);
+                            dependencyQuery.Criteria.AddCondition("ljr_attributelogicalname", ConditionOperator.Equal, dependency.AttributeLogicalName);
+                            dependencyQuery.Criteria.AddCondition("ljr_entityname", ConditionOperator.Equal, dependency.EntityName);
+                        }
+                        var dependencyResult = _service.RetrieveMultiple(dependencyQuery);
+
+                        // Query 2: Lookup ljr_datadictionaryattributemetadata by table and field name
+                        Guid? attributeMetadataId = null;
+                        if (!string.IsNullOrWhiteSpace(dependency.EntityName) && !string.IsNullOrWhiteSpace(dependency.AttributeLogicalName))
+                        {
+                            var attrMetaQuery = new QueryExpression("ljr_datadictionaryattributemetadata")
+                            {
+                                ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
+                                Criteria = new FilterExpression
+                                {
+                                    FilterOperator = LogicalOperator.And
+                                }
+                            };
+                            attrMetaQuery.Criteria.AddCondition("ljr_table", ConditionOperator.Equal, dependency.EntityName);
+                            attrMetaQuery.Criteria.AddCondition("ljr_columnlogical", ConditionOperator.Equal, dependency.AttributeLogicalName);
+                            var attrMetaResult = _service.RetrieveMultiple(attrMetaQuery);
+                            if (attrMetaResult.Entities.Count > 0)
+                            {
+                                attributeMetadataId = attrMetaResult.Entities[0].GetAttributeValue<Guid>("ljr_datadictionaryattributemetadataid");
+                                entity["ljr_attributemetadatalookup"] = new EntityReference("ljr_datadictionaryattributemetadata", attributeMetadataId.Value);
+                            }
                         }
 
-                        var result = _service.RetrieveMultiple(query);
-
-                        if (result.Entities.Count > 0)
+                        if (dependencyResult.Entities.Count > 0)
                         {
                             // Update existing record
-                            entity.Id = result.Entities[0].Id;
+                            entity.Id = dependencyResult.Entities[0].Id;
                             _service.Update(entity);
                         }
                         else
@@ -1157,7 +1176,7 @@ namespace DataIngestor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error saving dependency '{dependency.AttributeName}' for Web Resource '{webResource.DisplayName}': {ex.Message}");
+                    Console.WriteLine($"Error saving dependency for Web Resource '{webResource.DisplayName}': {ex.Message}");
                 }
             }
         }
@@ -1180,8 +1199,28 @@ namespace DataIngestor
                     {
                         try
                         {
-                            // Upsert logic: use web resource + field name + modification type as unique key
-                            var query = new QueryExpression("ljr_javascriptfieldmodification")
+                            // 1. Lookup ljr_webresource using ljr_displayname as the key to build the EntityReference
+                            var webResourceQuery = new QueryExpression("ljr_webresource")
+                            {
+                                ColumnSet = new ColumnSet("ljr_webresourceid", "ljr_name", "ljr_displayname"),
+                                Criteria = new FilterExpression
+                                {
+                                    FilterOperator = LogicalOperator.And
+                                }
+                            };
+                            webResourceQuery.Criteria.AddCondition("ljr_displayname", ConditionOperator.Equal, webResource.DisplayName);
+                            var webResourceResult = _service.RetrieveMultiple(webResourceQuery);
+
+                            if (webResourceResult.Entities.Count == 0)
+                            {
+                                Console.WriteLine($"Web Resource '{webResource.DisplayName}' not found. Skipping modification save.");
+                                continue;
+                            }
+
+                            var webResourceId = webResourceResult.Entities[0].GetAttributeValue<Guid>("ljr_webresourceid");
+
+                            // 2. Lookup for the existence of the modification record (upsert logic)
+                            var modificationQuery = new QueryExpression("ljr_javascriptfieldmodification")
                             {
                                 ColumnSet = new ColumnSet("ljr_javascriptfieldmodificationid"),
                                 Criteria = new FilterExpression
@@ -1189,14 +1228,14 @@ namespace DataIngestor
                                     FilterOperator = LogicalOperator.And
                                 }
                             };
-                            query.Criteria.AddCondition("ljr_webresourceid", ConditionOperator.Equal, webResource.WebResourceId.ToString());
-                            query.Criteria.AddCondition("ljr_fieldname", ConditionOperator.Equal, modification.FieldName);
-                            query.Criteria.AddCondition("ljr_modificationtype", ConditionOperator.Equal, modification.ModificationType.ToString());
+                            modificationQuery.Criteria.AddCondition("ljr_webresourcelookup", ConditionOperator.Equal, webResourceId);
+                            modificationQuery.Criteria.AddCondition("ljr_fieldname", ConditionOperator.Equal, modification.FieldName);
+                            modificationQuery.Criteria.AddCondition("ljr_modificationtype", ConditionOperator.Equal, modification.ModificationType.ToString());
 
-                            var result = _service.RetrieveMultiple(query);
+                            var modificationResult = _service.RetrieveMultiple(modificationQuery);
 
                             var entity = new Entity("ljr_javascriptfieldmodification");
-                            entity["ljr_webresourceid"] = new EntityReference("ljr_webresource", webResource.WebResourceId);
+                            entity["ljr_webresourcelookup"] = new EntityReference("ljr_webresource", webResourceId);
                             entity["ljr_fieldname"] = modification.FieldName;
                             entity["ljr_modificationtype"] = modification.ModificationType.ToString();
                             entity["ljr_modificationvalue"] = modification.ModificationValue;
@@ -1204,11 +1243,12 @@ namespace DataIngestor
                             entity["ljr_linenumber"] = modification.LineNumber;
                             entity["ljr_notes"] = modification.Notes;
                             entity["ljr_parsedon"] = modification.ParsedOn;
+                            entity["ljr_name"] = $"{webResource.DisplayName} - {modification.FieldName} - ({modification.ModificationType})";
 
-                            if (result.Entities.Count > 0)
+                            if (modificationResult.Entities.Count > 0)
                             {
                                 // Update existing record
-                                entity.Id = result.Entities[0].Id;
+                                entity.Id = modificationResult.Entities[0].Id;
                                 _service.Update(entity);
                                 Console.WriteLine($"Updated JavaScript Field Modification: {modification.FieldName} ({modification.ModificationType})");
                             }
