@@ -9,7 +9,7 @@
 - **Language/Framework:** C# 7.3, .NET Framework 4.6.2
 - **Core Libraries:** Microsoft.Xrm.Sdk, Microsoft.Xrm.Tooling.Connector
 - **Main Entry Point:** `Program.cs` (console application)
-- **Main Orchestrator:** `InjestorV2` class
+- **Main Orchestrator:** `DataIngestorOrchestrator` class
 - **Data Models:** Located in `DataIngestor/Models/`
 
 ## Key Components
@@ -82,7 +82,7 @@
 - JavaScript parsing is regex-based and may not handle all edge cases in complex scripts.
 
 ## Example
-var injector = new InjestorV2(serviceClient);
+var injector = new DataIngestorOrchestrator(serviceClient);
 string[] solutionNames = { "MySolution", "AnotherSolution" };
 injector.ProcessSolutions(solutionNames);
 ## References

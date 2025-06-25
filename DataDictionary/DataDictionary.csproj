@@ -114,7 +114,6 @@
     <Compile Include="FieldFormLocation.cs" />
     <Compile Include="FieldMetadata.cs" />
     <Compile Include="FormFieldInspector.cs" />
-    <Compile Include="InjestorV2.cs" />
     <Compile Include="Models\DataDictionaryAttribute.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
     <Compile Include="Models\DataDictionaryEntity.cs" />
@@ -133,6 +132,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="DataIngestor.csproj.user" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DataIngestor\DataIngestor.csproj">
+      <Project>{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}</Project>
+      <Name>DataIngestor</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

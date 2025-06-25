@@ -135,7 +135,7 @@ The following diagram and description illustrate how the main models relate to e
 
 ## Usage Patterns
 
-- **InjestorV2** orchestrates the ingestion process:
+- **DataIngestorOrchestrator** orchestrates the ingestion process:
   - Loads solutions and their components.
   - Populates entities, attributes, and web resources.
   - Correlates JavaScript field modifications with attribute metadata.
