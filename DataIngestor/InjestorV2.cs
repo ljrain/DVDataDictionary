@@ -21,6 +21,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Workflow.Runtime.Tracking;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace DataIngestor
 {
@@ -29,6 +31,8 @@ namespace DataIngestor
         public InjestorV2(IOrganizationService servClient)
         {
                 _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
+                // Create logger for this instance
+                _logger = Log.ForContext<InjestorV2>();
         }
 
         #region Private Fields
@@ -36,6 +40,7 @@ namespace DataIngestor
         private IOrganizationService _service;
         private Dictionary<string, DataDictionarySolution> _ddSolutions = new Dictionary<string, DataDictionarySolution>();
         private List<string> _allowedLogicalNames = new List<string>();
+        private readonly ILogger _logger;
 
         #endregion
 
@@ -47,28 +52,34 @@ namespace DataIngestor
         /// <param name="solutionUniqueNames">An array of unique names representing the solutions to be processed.  Each name must be non-null and
         public void ProcessSolutions(string[] solutionUniqueNames)
         {
+            using var activity = _logger.BeginScope("ProcessingSolutions");
+            var correlationId = Guid.NewGuid();
+            
+            _logger.LogInformation("Starting solution processing. CorrelationId: {CorrelationId}, Solutions: {SolutionNames}", 
+                correlationId, solutionUniqueNames);
+
             Stopwatch timerGlobal = new Stopwatch(); // Replace Timer with Stopwatch
             timerGlobal.Start();
 
-            GetSolutions(solutionUniqueNames);
-            foreach (var ddSolution in _ddSolutions.Values)
+            try
             {
-                Console.WriteLine($"Processing Solution: {ddSolution.UniqueName}");
-                GetComponentsInSolution(ddSolution);
+                GetSolutions(solutionUniqueNames);
+                foreach (var ddSolution in _ddSolutions.Values)
+                {
+                    _logger.LogInformation("Processing solution: {SolutionName}", ddSolution.UniqueName);
+                    GetComponentsInSolution(ddSolution);
+                }
+                ProcessEntities();
 
+                _logger.LogInformation("Solution processing completed. Duration: {ElapsedTime}", timerGlobal.Elapsed);
 
-            }
-            ProcessEntities();
-
-            Console.WriteLine(timerGlobal.Elapsed.ToString());
-
-            _ddSolutions["SampleSolution"].GetLogicalEntitiesFromSolutions();
+                _ddSolutions["SampleSolution"].GetLogicalEntitiesFromSolutions();
 
             #region Get all web resources and javascript decoded
             string[] webResourceObjectIds = GetWebResourceObjectIds();
             if (webResourceObjectIds.Length > 0)
             {
-                Console.WriteLine($"Found {webResourceObjectIds.Length} Web Resource Object IDs to process.");
+                _logger.LogInformation("Found {WebResourceCount} Web Resource Object IDs to process", webResourceObjectIds.Length);
                 var webResources = GetWebResourcesByObjectIds(webResourceObjectIds);
                 foreach (var webResource in webResources) // Rename the outer loop variable to avoid conflict
                 {
@@ -86,7 +97,9 @@ namespace DataIngestor
                         }
                     }
 
-                    Console.WriteLine($"Found Web Resource: {webResource.GetAttributeValue<string>("displayname")} ({webResource.GetAttributeValue<Guid>("webresourceidunique")})");
+                    _logger.LogDebug("Found Web Resource: {DisplayName} ({WebResourceId})", 
+                        webResource.GetAttributeValue<string>("displayname"), 
+                        webResource.GetAttributeValue<Guid>("webresourceidunique"));
 
                     string base64Content = webResource.GetAttributeValue<string>("content");
                     string javascript = Encoding.UTF8.GetString(Convert.FromBase64String(base64Content));
@@ -103,7 +116,7 @@ namespace DataIngestor
                     webRes.FieldModifications = ParseFieldModifications(webRes.Content, webRes.WebResourceId, webRes.DisplayName);
 
                     // Optionally, add debug logging:
-                    Console.WriteLine($"[DEBUG] FieldModifications count for {webRes.DisplayName}: {webRes.FieldModifications.Count}");
+                    _logger.LogDebug("FieldModifications count for {WebResourceName}: {Count}", webRes.DisplayName, webRes.FieldModifications.Count);
 
                     // If ParseJavaScript is still needed for API pattern detection, call it separately and assign its result to ApiPatterns:
                     webRes.ApiPatterns = ParseJavaScript(webRes.Content, webRes);
@@ -135,18 +148,19 @@ namespace DataIngestor
                         AttributeType = dep.AttributeType // Map AttributeType to AttributeType
                     }));
                     List<string> parsedJavaScript = ParseJavaScript(webRes.Content, webRes); // Parse the JavaScript content for Dataverse API events/actions and field modifications
-                    Console.WriteLine($"Parsed {parsedJavaScript.Count} Dataverse API events/actions and {webRes.FieldModifications.Count} field modifications from Web Resource: {webRes.DisplayName}");
+                    _logger.LogInformation("Parsed {ApiEventCount} Dataverse API events/actions and {FieldModificationCount} field modifications from Web Resource: {WebResourceName}", 
+                        parsedJavaScript.Count, webRes.FieldModifications.Count, webRes.DisplayName);
                 }
                 #endregion
 
                 SaveJavascriptToDataverse(); // Save web resources to Dataverse
                 CorrelateJavaScriptModificationsWithAttributes(); // Correlate JS modifications with attribute metadata
                 LogSchema();
-                Console.WriteLine($"Processed {_ddSolutions.Count} solutions with components and entities.");
+                _logger.LogInformation("Processed {SolutionCount} solutions with components and entities", _ddSolutions.Count);
                 SaveToDataverse();
 
                 timerGlobal.Stop(); // Stop the timer
-                 Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
+                _logger.LogInformation("Processing Complete. Time elapsed: {ElapsedTime}", timerGlobal.Elapsed);
             }
 
             #region Display Web Resource Modifications
@@ -154,7 +168,7 @@ namespace DataIngestor
             {
                 foreach (var webResource in ddSolution.WebResources)
                 {
-                    Console.WriteLine($"Web Resource: {webResource.DisplayName} ({webResource.WebResourceId})");
+                    _logger.LogInformation("Web Resource: {DisplayName} ({WebResourceId})", webResource.DisplayName, webResource.WebResourceId);
 
                     //Display modified tables
                     //if (webResource.ModifiedTables.Count > 0)
@@ -195,18 +209,25 @@ namespace DataIngestor
 
             foreach (var ddSolution in _ddSolutions.Values)
             {
-                Console.WriteLine($"Solution: {ddSolution.UniqueName}");
+                _logger.LogInformation("Solution: {SolutionName}", ddSolution.UniqueName);
                 foreach (var entity in ddSolution.Entities)
                 {
-                    Console.WriteLine($"  Entity: {entity.LogicalName} ({entity.EntityId})");
+                    _logger.LogDebug("  Entity: {LogicalName} ({EntityId})", entity.LogicalName, entity.EntityId);
                     foreach (var attribute in entity.Attributes)
                     {
-                        Console.WriteLine($"    Attribute: {attribute.LogicalName} ({attribute.AttributeId})");
+                        _logger.LogDebug("    Attribute: {LogicalName} ({AttributeId})", attribute.LogicalName, attribute.AttributeId);
                     }
                 }
             }
 
             #endregion
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing solutions: {SolutionNames}. CorrelationId: {CorrelationId}", 
+                    solutionUniqueNames, correlationId);
+                throw; // Re-throw to maintain existing behavior
+            }
         }
 
 

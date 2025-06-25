@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DataDictionary.Models;
+using Serilog;
 //using DataIngestor.Models;
 
 namespace DataIngestor
@@ -17,7 +18,8 @@ namespace DataIngestor
         /// </summary>
         public static void RunAllTests()
         {
-            Console.WriteLine("=== Running JavaScript Parsing Tests ===");
+            var logger = Log.ForContext(typeof(JavaScriptParsingTests));
+            logger.Information("=== Running JavaScript Parsing Tests ===");
             
             int passed = 0;
             int total = 0;
@@ -27,11 +29,11 @@ namespace DataIngestor
             if (TestHiddenFieldDetection())
             {
                 passed++;
-                Console.WriteLine("✓ Test 1 PASSED: Hidden field detection");
+                logger.Information("✓ Test 1 PASSED: Hidden field detection");
             }
             else
             {
-                Console.WriteLine("✗ Test 1 FAILED: Hidden field detection");
+                logger.Warning("✗ Test 1 FAILED: Hidden field detection");
             }
 
             // Test 2: Required field detection
@@ -39,11 +41,11 @@ namespace DataIngestor
             if (TestRequiredFieldDetection())
             {
                 passed++;
-                Console.WriteLine("✓ Test 2 PASSED: Required field detection");
+                logger.Information("✓ Test 2 PASSED: Required field detection");
             }
             else
             {
-                Console.WriteLine("✗ Test 2 FAILED: Required field detection");
+                logger.Warning("✗ Test 2 FAILED: Required field detection");
             }
 
             // Test 3: Default value detection
