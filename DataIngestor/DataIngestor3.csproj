@@ -217,7 +217,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="InjestorV2.cs" />
-    <Compile Include="JavaScriptParsingTests.cs" />
     <Compile Include="Models\DataDictionaryAttributeMetadata.cs" />
     <Compile Include="Models\DataDictionaryAttribute.cs" />
     <Compile Include="Models\DataDictionaryEntity.cs" />

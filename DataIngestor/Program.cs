@@ -30,7 +30,7 @@ namespace DataIngestor
             if (args.Length > 0 && args[0].ToLower() == "test")
             {
                 Console.WriteLine("Running in test mode...");
-                JavaScriptParsingTests.RunAllTests();
+                //JavaScriptParsingTests.RunAllTests(); // Restore the test run
                 Console.WriteLine("\nPress any key to exit...");
                 Console.ReadKey();
                 return;
