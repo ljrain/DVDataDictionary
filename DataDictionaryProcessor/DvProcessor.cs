@@ -32,6 +32,7 @@ namespace DataDictionaryProcessor
 
         private List<string> _allowedLogicalNames = new List<string>();
         private Dictionary<string, List<string>> _allowedtableAttributes = new Dictionary<string, List<string>>();
+        List<DataDictionaryJavaScriptFieldModification> modifications;
 
         #endregion
 
@@ -48,6 +49,13 @@ namespace DataDictionaryProcessor
             get { return _allowedtableAttributes; }
             set { _allowedtableAttributes = value; }
         }
+
+        public List<DataDictionaryJavaScriptFieldModification> Modifications
+        {
+            get { return modifications; }
+            set { modifications = value; }
+        }
+
 
         #endregion
 
@@ -142,6 +150,19 @@ namespace DataDictionaryProcessor
                 Console.WriteLine($"Attributes Count: {entity.Attributes.Count()}");
                 foreach (var attribute in entity.Attributes)
                 {
+                    Console.WriteLine($"  Attribute Full Name: {entity.EntitySetName}.{attribute.AttributeName}");
+                    // check if any field name is matching a modification from the javaScript parser
+                    // Check if any modification matches the attribute name
+                    //  Attribute: Fax, Type: String
+                    var matchingModification = this.Modifications?
+                        .FirstOrDefault(mod =>
+                            string.Equals(mod.FieldName, attribute.AttributeName, StringComparison.OrdinalIgnoreCase));
+                    if (matchingModification != null)
+                    {
+                        Console.WriteLine($"    [JS Modified] Field: {matchingModification.FieldName}, Modification: {matchingModification.ModificationType}, WebResource: {matchingModification.WebResourceName}");
+                        attribute.Modifications.Add(matchingModification);
+                    }
+
                     Console.WriteLine($"  Attribute: {attribute.AttributeName}, Type: {attribute.Metadata.DataType}");
                 }
             }

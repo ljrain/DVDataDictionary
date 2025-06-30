@@ -3,7 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Workflow.Runtime;
+using System.Diagnostics;
 
 namespace DataDictionaryProcessor
 {
@@ -44,21 +47,32 @@ namespace DataDictionaryProcessor
 
         public void BuildDataDictionary()
         {
-            // This method will orchestrate the collection of data and building of the data dictionary.
-            // It will call methods from DvCollector to collect metadata and parse JavaScript files.
-            // It will also handle the correlation of metadata with parsed data and saving to Dataverse.
             Console.WriteLine("Building Data Dictionary...");
-            // Create an instance of DvCollector and call its methods
+
+            DateTime startTime = DateTime.Now;
             DvCollector collector = new DvCollector(_serviceClient);
             collector.CollectData();
-            // Further implementation goes here...
+            var elapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
+            Console.WriteLine($"Data collection took {elapsedTime} seconds.");
 
+            startTime = DateTime.Now;
             DvProcessor processor = new DvProcessor();
             processor.AllowedLogicalNames = collector.AllowedLogicalNames;
             processor.AllowedTableAttributes = collector.AllowedTableAttributes;
+            processor.Modifications = collector.Modifications;
             processor.ProcessData(collector.DDSolutions);
             processor.PrintDataDictionary();
 
+            var totalTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
+            Console.WriteLine($"Total time taken for processing: {totalTime} seconds.");
+         
+            
+
+
+            
+            
+            
+            
             Console.WriteLine("Data Dictionary built successfully!");
         }
     }

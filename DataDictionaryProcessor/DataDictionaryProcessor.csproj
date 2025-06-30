@@ -145,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DvJavaScriptParser.cs" />
+    <Compile Include="DvSaver.cs" />
     <Compile Include="Models\DataDictionaryModel.cs" />
     <Compile Include="DictionaryOrchestrator.cs" />
     <Compile Include="DvCollector.cs" />

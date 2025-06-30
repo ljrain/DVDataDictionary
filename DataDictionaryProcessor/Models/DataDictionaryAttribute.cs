@@ -30,6 +30,8 @@ namespace DataDictionary.Models
 
         public DataDictionaryAttributeMetadata Metadata { get; set; } = new DataDictionaryAttributeMetadata();
 
+        public List<DataDictionaryJavaScriptFieldModification> Modifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
+
         public void ApplyValues()
         { 
             if (this.Metadata == null)
