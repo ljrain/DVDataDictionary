@@ -4,6 +4,7 @@ namespace DataDictionary.Models
 {
     public class DataDictionaryAttributeMetadata
     {
+        public Guid? AttributeId { get; set; }
         public string Table { get; set; }
         public string ColumnDisplay { get; set; }
         public string ColumnLogical { get; set; }

@@ -226,6 +226,41 @@ namespace DataIngestor
 
         }
 
+        /// <summary>
+        /// Correlates DataDictionaryAttribute objects with their corresponding DataDictionaryAttributeMetadata
+        /// using the AttributeId property
+        /// </summary>
+        public void CorrelateAttributesWithMetadata()
+        {
+            foreach (DataDictionarySolution ddSolution in _ddSolutions.Values)
+            {
+                if (ddSolution.Attributes == null || ddSolution.AttributeMetadata == null)
+                    continue;
+
+                Console.WriteLine($"Correlating attributes with metadata for solution: {ddSolution.UniqueName}");
+                
+                // Create a lookup dictionary for faster metadata access
+                var metadataLookup = ddSolution.AttributeMetadata
+                    .Where(meta => meta.AttributeId.HasValue)
+                    .ToDictionary(meta => meta.AttributeId.Value, meta => meta);
+
+                foreach (var attribute in ddSolution.Attributes)
+                {
+                    if (metadataLookup.TryGetValue(attribute.AttributeId, out var metadata))
+                    {
+                        Console.WriteLine($"Linked Attribute '{attribute.LogicalName}' (ID: {attribute.AttributeId}) with metadata (Table: {metadata.Table}, DataType: {metadata.DataType})");
+                        
+                        // Here you could set additional properties or perform operations with the linked data
+                        // For example, enriching the attribute with metadata information
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No metadata found for Attribute '{attribute.LogicalName}' (ID: {attribute.AttributeId})");
+                    }
+                }
+            }
+        }
+
 
         public void LogSchema()
         {
@@ -257,6 +292,7 @@ namespace DataIngestor
                             //sb.AppendFormat("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}", entity.LogicalName, (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label), attribute.LogicalName, attribute.SchemaName, attribute.AttributeType.Value.ToString(), attribute.IsCustomAttribute, attribute.IsAuditEnabled.Value);
 
                             DataDictionaryAttributeMetadata ddMeta = new DataDictionaryAttributeMetadata();
+                            ddMeta.AttributeId = attribute.MetadataId;
                             ddMeta.Table = entity.LogicalName;
                             ddMeta.ColumnDisplay = (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label);
                             ddMeta.ColumnLogical = attribute.LogicalName;
