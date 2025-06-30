@@ -401,7 +401,7 @@ namespace DataIngestor
         {
             foreach (DataDictionarySolution ddSolution in _ddSolutions.Values)
             {
-                if (ddSolution.Attributes == null || ddSolution.AttributeMetadata == null)
+                if (ddSolution.Entities == null || ddSolution.AttributeMetadata == null)
                     continue;
 
                 Console.WriteLine($"Correlating attributes with metadata for solution: {ddSolution.UniqueName}");
@@ -411,18 +411,23 @@ namespace DataIngestor
                     .Where(meta => meta.AttributeId.HasValue)
                     .ToDictionary(meta => meta.AttributeId.Value, meta => meta);
 
-                foreach (var attribute in ddSolution.Attributes)
+                foreach (var entity in ddSolution.Entities)
                 {
-                    if (metadataLookup.TryGetValue(attribute.AttributeId, out var metadata))
+                    if (entity.Attributes == null) continue;
+
+                    foreach (var attribute in entity.Attributes)
                     {
-                        Console.WriteLine($"Linked Attribute '{attribute.LogicalName}' (ID: {attribute.AttributeId}) with metadata (Table: {metadata.Table}, DataType: {metadata.DataType})");
-                        
-                        // Here you could set additional properties or perform operations with the linked data
-                        // For example, enriching the attribute with metadata information
-                    }
-                    else
-                    {
-                        Console.WriteLine($"No metadata found for Attribute '{attribute.LogicalName}' (ID: {attribute.AttributeId})");
+                        if (metadataLookup.TryGetValue(attribute.AttributeId, out var metadata))
+                        {
+                            Console.WriteLine($"Linked Attribute '{attribute.LogicalName}' (ID: {attribute.AttributeId}) with metadata (Table: {metadata.Table}, DataType: {metadata.DataType})");
+                            
+                            // Here you could set additional properties or perform operations with the linked data
+                            // For example, enriching the attribute with metadata information
+                        }
+                        else
+                        {
+                            Console.WriteLine($"No metadata found for Attribute '{attribute.LogicalName}' (ID: {attribute.AttributeId})");
+                        }
                     }
                 }
             }
