@@ -554,6 +554,8 @@ public class DvCollectorIntegrationTests
 - [DataIngestor Architecture Review](../docs/dataingestor-architecture-review.md) - Architectural analysis and recommendations
 - [Developer Guide](../docs/developer-guide.md) - General development guide for the solution
 - [Model Relationships](../docs/model-relationships.md) - Data model relationship diagrams
+- [Attribute Metadata Relationship Plan](../docs/attribute-metadata-relationship-plan.md) - Detailed plan to resolve AttributeMetadata to Attribute relationship issues
+- [Dataverse Attribute Relationship Explained](../docs/dataverse-attribute-relationship-explained.md) - Technical explanation of the relationship between solution components and metadata
 
 ### External Resources
 
