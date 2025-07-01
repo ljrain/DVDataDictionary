@@ -65,14 +65,15 @@ namespace DataDictionaryProcessor
 
             var totalTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
             Console.WriteLine($"Total time taken for processing: {totalTime} seconds.");
-         
-            
+
+            startTime = DateTime.Now;
+            // Save to Dataverse
+            DvSaver saver = new DvSaver(_serviceClient, processor.DdModel);
+            saver.SaveToDataverse();
+            Console.WriteLine($"Data saved to Dataverse in {DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2")} seconds.");
 
 
-            
-            
-            
-            
+
             Console.WriteLine("Data Dictionary built successfully!");
         }
     }

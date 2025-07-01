@@ -161,6 +161,36 @@ namespace DataDictionaryProcessor
                     {
                         Console.WriteLine($"    [JS Modified] Field: {matchingModification.FieldName}, Modification: {matchingModification.ModificationType}, WebResource: {matchingModification.WebResourceName}");
                         attribute.Modifications.Add(matchingModification);
+                        if (matchingModification.ModificationType == JavaScriptModificationType.Visibility)
+                        {
+                            attribute.Metadata.IsHiddenByScript = true;
+                            if (matchingModification.ModificationType == JavaScriptModificationType.Visibility)
+                            attribute.Metadata.ScriptDefaultValue = matchingModification.ModificationValue;
+                            attribute.Metadata.ModifyingWebResources = matchingModification.WebResourceName;
+
+                            DataDictionaryWebResource webRes = new DataDictionaryWebResource();
+                            webRes.WebResourceId = matchingModification.WebResourceId;
+                            webRes.DisplayName = matchingModification.WebResourceName;
+                            webRes.Content = matchingModification.JavaScriptCode;
+
+                            if (!DdModel.WebResources.ContainsKey(webRes.DisplayName))
+                            {
+                                webRes.ParseDependencies();
+                                webRes.FieldModifications = attribute.Modifications;
+                                _ddModel.WebResources.Add(webRes.DisplayName, webRes);
+                            }
+                            else
+                            {
+                                // If the web resource already exists, merge modifications
+                                var existingWebResource = DdModel.WebResources[webRes.DisplayName];
+                                existingWebResource.FieldModifications.AddRange(webRes.FieldModifications);
+                            }
+                        }
+                        else
+                        {
+                            attribute.Metadata.IsHiddenByScript = false;
+                        }
+
                     }
 
                     Console.WriteLine($"  Attribute: {attribute.AttributeName}, Type: {attribute.Metadata.DataType}");

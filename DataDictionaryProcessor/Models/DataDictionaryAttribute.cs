@@ -41,6 +41,7 @@ namespace DataDictionary.Models
             this.FullName = this.Metadata.Table + "." + this.Metadata.ColumnLogical;
             this.LogicalName = this.Metadata.ColumnLogical;
             this.AttributeName = this.Metadata.DisplayName;
+            
 
         }
     }

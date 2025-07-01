@@ -100,6 +100,17 @@ namespace DataDictionaryProcessor
 
             Console.WriteLine("Web Resource Object IDs collected: " + _solutionObjectIds.Length);
             List<Entity> webResources = GetWebResourcesByObjectIds(_solutionObjectIds);
+            foreach (var webResource in webResources)
+            {
+                
+                _ddSolutions[_ddSolutions.FirstOrDefault().Key].WebResources.Add(new DataDictionaryWebResource
+                {
+                    WebResourceId = webResource.GetAttributeValue<Guid>("webresourceid"),
+                    Content = webResource.GetAttributeValue<string>("content"),
+                    DisplayName = webResource.GetAttributeValue<string>("displayname")
+                });
+            }
+
             Console.WriteLine("Web Resources retrieved: " + webResources.Count);
 
             _dvJavaScriptParser = new DvJavaScriptParser(_serviceClient, _ddSolutions, _allowedLogicalNames, _allowedtableAttributes);

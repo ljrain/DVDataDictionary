@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Policy;
 using System.Windows.Data;
 
 namespace DataDictionary.Models
@@ -15,7 +16,7 @@ namespace DataDictionary.Models
 
         public Dictionary<string,DataDictionaryEntity> Entities { get; set; } = new Dictionary<string, DataDictionaryEntity>();
 
-
+        public Dictionary<string,DataDictionaryWebResource> WebResources { get; set; } = new Dictionary<string, DataDictionaryWebResource>();
 
     }
 
