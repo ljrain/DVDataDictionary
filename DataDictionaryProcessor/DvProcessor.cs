@@ -7,65 +7,84 @@ using System.Threading.Tasks;
 
 namespace DataDictionaryProcessor
 {
+    /// <summary>
+    /// Processes Data Dictionary solutions, entities, and attributes, including JavaScript field modifications.
+    /// </summary>
     public class DvProcessor
     {
-        //DataDictionary
-        //│
-        //├── Entity[1..*]
-        //│   ├── EntityName: string
-        //│   ├── EntityDescription: string
-        //│   ├── EntityType: string
-        //│   ├── Metadata: { key: value, ... }
-        //│   │
-        //│   └── Attribute[1..*]
-        //│       ├── AttributeName: string
-        //│       ├── DataType: string
-        //│       ├── IsNullable: boolean
-        //│       ├── DefaultValue: any
-        //│       ├── Metadata: { key: value, ... }
-        //│       └── ActionFunction: JavaScriptFunctionReference
-
         #region "Private Fields"
 
+        /// <summary>
+        /// Stores the loaded Data Dictionary solutions by name.
+        /// </summary>
         Dictionary<string, DataDictionarySolution> _ddSolutions;
+
+        /// <summary>
+        /// The main Data Dictionary model being processed.
+        /// </summary>
         DataDictionary.Models.DataDictionary _ddModel = new DataDictionary.Models.DataDictionary();
 
+        /// <summary>
+        /// List of allowed logical entity names.
+        /// </summary>
         private List<string> _allowedLogicalNames = new List<string>();
+
+        /// <summary>
+        /// Dictionary of allowed table attributes by entity logical name.
+        /// </summary>
         private Dictionary<string, List<string>> _allowedtableAttributes = new Dictionary<string, List<string>>();
+
+        /// <summary>
+        /// List of JavaScript field modifications applied to attributes.
+        /// </summary>
         List<DataDictionaryJavaScriptFieldModification> modifications;
 
         #endregion
 
         #region Public Properties
 
+        /// <summary>
+        /// Gets or sets the list of allowed logical entity names.
+        /// </summary>
         public List<string> AllowedLogicalNames
         {
             get { return _allowedLogicalNames; }
             set { _allowedLogicalNames = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the dictionary of allowed table attributes by entity logical name.
+        /// </summary>
         public Dictionary<string, List<string>> AllowedTableAttributes
         {
             get { return _allowedtableAttributes; }
             set { _allowedtableAttributes = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the list of JavaScript field modifications.
+        /// </summary>
         public List<DataDictionaryJavaScriptFieldModification> Modifications
         {
             get { return modifications; }
             set { modifications = value; }
         }
 
-
         #endregion
 
-
+        /// <summary>
+        /// Gets or sets the main Data Dictionary model.
+        /// </summary>
         public DataDictionary.Models.DataDictionary DdModel
         {
             get { return _ddModel; }
             set { _ddModel = value; }
         }
 
+        /// <summary>
+        /// Processes the provided Data Dictionary solutions, populating the model with entities and attributes.
+        /// </summary>
+        /// <param name="ddSolutions">Dictionary of Data Dictionary solutions keyed by solution name.</param>
         public void ProcessData(Dictionary<string, DataDictionarySolution> ddSolutions)
         {
             _ddSolutions = ddSolutions;
@@ -100,7 +119,6 @@ namespace DataDictionaryProcessor
                         };
                     }
 
-
                     // Find all of the AttributeMetadata that has the same EntityLogicalName
                     // Filter AttributeMetadata for attributes where Table matches the entity's LogicalName
                     var matchingAttributes = _ddSolutions["Default"].AttributeMetadata
@@ -109,7 +127,6 @@ namespace DataDictionaryProcessor
                             (attr.IsCustomizable == true || (attr.IsCustomizable.HasValue && attr.IsCustomizable.Value == true))
                         )
                         .ToList();
-
 
                     Console.WriteLine($"Found {matchingAttributes.Count} matching attributes for entity {entity.LogicalName}");
 
@@ -128,6 +145,9 @@ namespace DataDictionaryProcessor
             Console.WriteLine("Data Dictionary Processing Complete.");
         }
 
+        /// <summary>
+        /// Prints the contents of the Data Dictionary, including solutions, entities, attributes, and JavaScript modifications.
+        /// </summary>
         public void PrintDataDictionary()
         {
             Console.WriteLine("Data Dictionary Contents:");
