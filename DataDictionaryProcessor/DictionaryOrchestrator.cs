@@ -46,7 +46,9 @@ namespace DataDictionaryProcessor
             DvCollector collector = new DvCollector(_serviceClient);
             collector.CollectData();
             var elapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Data collection took {elapsedTime} seconds.");
+            Console.ResetColor();
 
             startTime = DateTime.Now;
             DvProcessor processor = new DvProcessor();
@@ -57,14 +59,17 @@ namespace DataDictionaryProcessor
             processor.PrintDataDictionary();
 
             var totalTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Total time taken for processing: {totalTime} seconds.");
+            Console.ResetColor();
 
             startTime = DateTime.Now;
             // Save to Dataverse
             DvSaver saver = new DvSaver(_serviceClient, processor.DdModel);
             saver.SaveToDataverse();
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Data saved to Dataverse in {DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2")} seconds.");
-
+            Console.ResetColor();
 
             Console.WriteLine("Data Dictionary built successfully!");
         }
