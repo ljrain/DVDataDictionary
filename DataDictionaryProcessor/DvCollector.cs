@@ -234,8 +234,6 @@ namespace DataDictionaryProcessor
                     RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
                 };
                 ddSolution.AddComponent(ddComponent);
-                //                if (ddComponent.ComponentType == 1)
-
 
                 Console.WriteLine($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Object Id: {ddComponent.ObjectId}");
             }

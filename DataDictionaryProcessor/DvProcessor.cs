@@ -86,6 +86,27 @@ namespace DataDictionaryProcessor
         public void ProcessData(Dictionary<string, DataDictionarySolution> ddSolutions)
         {
             _ddSolutions = ddSolutions;
+
+            // move web resources to main model
+            foreach (var d in _ddSolutions)
+            {
+                d.Value.WebResources.ForEach(wr =>
+                {
+                    if (!_ddModel.WebResources.ContainsKey(wr.DisplayName))
+                    {
+                        wr.ParseDependencies();
+                        _ddModel.WebResources.Add(wr.DisplayName, wr);
+                    }
+                    else
+                    {
+                        // If the web resource already exists, merge modifications
+                        var existingWebResource = _ddModel.WebResources[wr.DisplayName];
+                        existingWebResource.FieldModifications.AddRange(wr.FieldModifications);
+                    }
+                });
+            }
+
+
             foreach (var solutionName in _ddSolutions.Keys)
             {
                 Console.WriteLine($"Processing Solution: {solutionName}");
