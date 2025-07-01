@@ -27,7 +27,7 @@ namespace DataDictionaryProcessor
         #endregion
 
 
-        public void SaveToDataverse(DataDictionary.Models.DataDictionary ddModel)
+        public void OLDSaveToDataverse(DataDictionary.Models.DataDictionary ddModel)
         {
             _ddModel = ddModel;
             if (_serviceClient == null || !_serviceClient.IsReady)
