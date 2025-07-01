@@ -159,18 +159,18 @@ namespace DataDictionaryProcessor
                     Console.WriteLine("No entities found in this solution.");
                     continue;
                 }
-                Console.WriteLine($"Entities Count: {_ddModel.Entities.Count}");
-                Console.WriteLine($"Attributes Count: {_ddModel.Entities.Values.Sum(e => e.Attributes.Count())}");
+                //Console.WriteLine($"Entities Count: {_ddModel.Entities.Count}");
+                //Console.WriteLine($"Attributes Count: {_ddModel.Entities.Values.Sum(e => e.Attributes.Count())}");
             }
 
             foreach (var entity in _ddModel.Entities.Values)
             {
                 Console.WriteLine($"Entity Full Name: {entity.EntitySetName}.{entity.LogicalName}");
-                Console.WriteLine($"Entity: {entity.LogicalName}, Type: {entity.ObjectTypeCode}");
-                Console.WriteLine($"Attributes Count: {entity.Attributes.Count()}");
+                //Console.WriteLine($"Entity: {entity.LogicalName}, Type: {entity.ObjectTypeCode}");
+                //Console.WriteLine($"Attributes Count: {entity.Attributes.Count()}");
                 foreach (var attribute in entity.Attributes)
                 {
-                    Console.WriteLine($"  Attribute Full Name: {entity.EntitySetName}.{attribute.AttributeName}");
+                    //Console.WriteLine($"  Attribute Full Name: {entity.EntitySetName}.{attribute.AttributeName}");
                     // check if any field name is matching a modification from the javaScript parser
                     // Check if any modification matches the attribute name
                     //  Attribute: Fax, Type: String
@@ -187,6 +187,7 @@ namespace DataDictionaryProcessor
                             if (matchingModification.ModificationType == JavaScriptModificationType.Visibility)
                             attribute.Metadata.ScriptDefaultValue = matchingModification.ModificationValue;
                             attribute.Metadata.ModifyingWebResources = matchingModification.WebResourceName;
+                            
 
                             DataDictionaryWebResource webRes = new DataDictionaryWebResource();
                             webRes.WebResourceId = matchingModification.WebResourceId;

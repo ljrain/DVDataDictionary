@@ -452,8 +452,8 @@ namespace DataDictionaryProcessor
                         var result = _serviceClient.RetrieveMultiple(query);
 
                         var entity = new Entity("ljr_webresource");
-                        //entity["webresourceidunique"] = webResource.WebResourceId; // Use unique ID for updates if available
-                        //entity["ljr_webresourceidunique"] = webResource.WebResourceId.ToString(); // Use string representation for consistency
+                        //entity["webresourceidunique"] = webResource.Value.WebResourceId; // Use unique ID for updates if available
+                        entity["ljr_webresourceidunique"] = webResource.Value.WebResourceId.ToString(); // Use string representation for consistency
                         entity["ljr_displayname"] = webResource.Value.DisplayName;
                         entity["ljr_name"] = webResource.Value.DisplayName;
                         entity["ljr_javascript"] = webResource.Value.Content;

@@ -73,7 +73,6 @@ namespace DataDictionaryProcessor
             Console.WriteLine($"Data saved to Dataverse in {DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2")} seconds.");
 
 
-
             Console.WriteLine("Data Dictionary built successfully!");
         }
     }
