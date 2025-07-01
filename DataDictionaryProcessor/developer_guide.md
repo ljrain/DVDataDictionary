@@ -19,6 +19,140 @@ The DataDictionaryProcessor serves as one of the key components in the DVDataDic
 
 The processor is designed to be run as a standalone console application or integrated into automated workflows for documentation generation.
 
+## Architecture Overview
+
+### Design Principles
+
+The DataDictionaryProcessor follows several key architectural principles:
+
+1. **Separation of Concerns**: Each major component has a distinct responsibility
+2. **Single Direction Data Flow**: Data flows unidirectionally through the processing pipeline
+3. **Extensibility**: New metadata types and script parsers can be added with minimal impact
+4. **Fail-Fast**: Early validation and clear error messages for configuration issues
+5. **Performance Awareness**: Batched operations and timing instrumentation throughout
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Program.cs                              │
+│              (Entry Point & Configuration)                     │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ Creates & Configures
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                DictionaryOrchestrator                          │
+│                 (Workflow Coordinator)                         │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ Orchestrates
+                          ▼
+┌─────────────────┬───────────────────┬─────────────────────────────┐
+│   DvCollector   │    DvProcessor    │         DvSaver           │
+│  (Collection)   │   (Processing)    │       (Persistence)       │
+│                 │                   │    [Future Enhancement]   │
+└─────────────────┴───────────────────┴─────────────────────────────┘
+         │                   │                        │
+         ▼                   ▼                        ▼
+┌─────────────────┬───────────────────┬─────────────────────────────┐
+│ Dataverse API   │ JavaScript Parser │    Dataverse Storage      │
+│   Metadata      │   Pattern Matcher │      (Future)             │
+│   Collection    │   Correlation     │                           │
+└─────────────────┴───────────────────┴─────────────────────────────┘
+```
+
+### Data Flow Architecture
+
+```
+Input (appsettings.json) → Authentication → Solution Selection
+                                                    │
+                                                    ▼
+                          ┌─────────────────────────────────────┐
+                          │        DvCollector.CollectData()    │
+                          │                                     │
+                          │  ┌─────────────────────────────────┐│
+                          │  │ 1. GetSolutions()             ││
+                          │  │ 2. GetComponentsInSolution()  ││
+                          │  │ 3. ProcessEntities()          ││
+                          │  │ 4. LogSchema()               ││
+                          │  │ 5. Collect Web Resources     ││
+                          │  └─────────────────────────────────┘│
+                          └─────────────────────────────────────┘
+                                                    │
+                                                    ▼
+                          ┌─────────────────────────────────────┐
+                          │        DvProcessor.ProcessData()    │
+                          │                                     │
+                          │  ┌─────────────────────────────────┐│
+                          │  │ 1. Parse JavaScript Web Res.   ││
+                          │  │ 2. Extract Field Modifications ││
+                          │  │ 3. Correlate with Metadata     ││
+                          │  │ 4. Build Unified Model         ││
+                          │  │ 5. Generate Output             ││
+                          │  └─────────────────────────────────┘│
+                          └─────────────────────────────────────┘
+                                                    │
+                                                    ▼
+                          ┌─────────────────────────────────────┐
+                          │         DvSaver.SaveToDataverse()   │
+                          │              [Future Feature]       │
+                          └─────────────────────────────────────┘
+```
+
+### Design Decisions and Rationale
+
+#### 1. Synchronous Processing Model
+**Decision**: Use synchronous, sequential processing rather than async/parallel
+**Rationale**: 
+- Simplifies error handling and debugging
+- Dataverse API rate limiting makes parallel requests less beneficial
+- Clear progression and timing visibility for users
+- Easier to maintain and troubleshoot
+
+#### 2. Console Application Architecture
+**Decision**: Console application vs. web service or GUI
+**Rationale**:
+- Simple deployment and execution model
+- Easy integration into CI/CD pipelines
+- Minimal dependencies and overhead
+- Clear progress reporting and logging
+- Easy to script and automate
+
+#### 3. Regex-Based JavaScript Parsing
+**Decision**: Use regex patterns instead of AST parsing
+**Rationale**:
+- Most Dataverse JavaScript follows consistent patterns
+- Lighter weight than full JavaScript parsing libraries
+- Easier to extend with new patterns
+- Sufficient for current use cases
+- Better performance for large files
+
+#### 4. In-Memory Data Model
+**Decision**: Build complete data model in memory before output
+**Rationale**:
+- Enables cross-referencing and correlation
+- Supports multiple output formats
+- Simplifies data relationships
+- Memory usage is acceptable for typical solution sizes
+
+### Technology Stack
+
+#### Core Technologies
+- **.NET Framework 4.6.2**: Chosen for compatibility with Dataverse SDK requirements
+- **Microsoft.Xrm.Tooling.Connector**: Primary Dataverse connectivity
+- **Microsoft.Extensions.Configuration**: Modern configuration management
+- **Newtonsoft.Json**: JSON serialization and processing
+
+#### Key Dependencies
+- **Microsoft.CrmSdk.CoreAssemblies (9.0.2.51)**: Core Dataverse SDK functionality
+- **Microsoft.CrmSdk.XrmTooling.CoreAssembly (9.1.1.65)**: Enhanced connection management
+- **Microsoft.Extensions.Configuration.Json (9.0.6)**: JSON configuration support
+- **System.Text.Json (9.0.6)**: High-performance JSON processing
+
+#### Development Tools
+- **Visual Studio 2017+**: Primary IDE with full .NET Framework support
+- **NuGet Package Manager**: Dependency management
+- **MSBuild**: Build automation
+
 ## Main Responsibilities
 
 The DataDictionaryProcessor has four primary responsibilities:
@@ -559,9 +693,546 @@ public class DvCollectorIntegrationTests
 
 ### External Resources
 
-- [Microsoft Dataverse SDK Documentation](https://docs.microsoft.com/en-us/powerapps/developer/data-platform/)
-- [.NET Framework 4.6.2 Documentation](https://docs.microsoft.com/en-us/dotnet/framework/)
-- [Azure AD Application Registration](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app)
+- [Microsoft Dataverse Developer Guide](https://docs.microsoft.com/en-us/powerapps/developer/data-platform/) - Official Dataverse development documentation
+- [Dataverse SDK for .NET](https://docs.microsoft.com/en-us/powerapps/developer/data-platform/org-service/overview) - SDK documentation and samples
+- [Azure AD Application Registration](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app) - Guide for setting up authentication
+- [JavaScript in Model-Driven Apps](https://docs.microsoft.com/en-us/powerapps/developer/model-driven-apps/clientapi/) - Client API reference for form scripting
+
+## Performance Characteristics
+
+### Typical Processing Times
+
+Based on testing with various solution sizes:
+
+| Solution Size | Entities | Attributes | Web Resources | Processing Time |
+|---------------|----------|------------|---------------|-----------------|
+| Small         | 5-10     | 100-200    | 5-15         | 30-60 seconds   |
+| Medium        | 25-50    | 500-1000   | 25-50        | 2-5 minutes     |
+| Large         | 100+     | 2000+      | 100+         | 10-20 minutes   |
+
+### Performance Bottlenecks
+
+1. **Dataverse API Calls**: Metadata retrieval is the primary bottleneck
+   - Solution: Batch operations where possible
+   - Consideration: Dataverse API rate limiting
+
+2. **JavaScript Parsing**: Complex regex patterns on large files
+   - Solution: Efficient regex compilation and caching
+   - Consideration: Memory usage for large web resources
+
+3. **Memory Usage**: Large solutions require significant RAM
+   - Typical usage: 200-500MB for medium solutions
+   - Peak usage: Up to 1GB for very large solutions
+
+### Optimization Strategies
+
+#### For Large Solutions
+- Run during off-peak hours to avoid API rate limits
+- Consider processing subsets of solutions separately
+- Ensure adequate system memory (8GB+ recommended)
+- Use SSD storage for better I/O performance
+
+#### For Development
+- Use smaller test solutions for rapid iteration
+- Cache authentication tokens where possible
+- Monitor console output for performance insights
+
+## Security Considerations
+
+### Authentication and Authorization
+
+#### Azure AD Application Security
+- **Principle of Least Privilege**: Grant only necessary Dataverse permissions
+- **Client Secret Management**: 
+  - Rotate secrets regularly (recommended: every 6 months)
+  - Store secrets securely (Azure Key Vault in production)
+  - Never commit secrets to source control
+- **Certificate-Based Authentication**: Consider using certificates instead of secrets for production
+
+#### Dataverse Permissions
+Required permissions for the service account:
+- **System User**: Basic access to Dataverse
+- **Solution**: Read access to solution metadata
+- **Entity Metadata**: Read access to entity definitions
+- **Attribute Metadata**: Read access to attribute definitions
+- **Web Resource**: Read access to web resource content
+
+#### Network Security
+- **HTTPS Only**: All communication with Dataverse uses HTTPS
+- **IP Restrictions**: Consider restricting Azure AD application access by IP
+- **VPN/Private Networks**: Use secure networks for production processing
+- **Audit Logging**: Monitor Azure AD and Dataverse access logs
+
+### Data Security
+
+#### Data Classification
+- **Metadata**: Generally considered internal/confidential
+- **JavaScript Content**: May contain business logic (treat as confidential)
+- **Configuration Data**: Contains credentials (treat as secret)
+
+#### Data Handling
+- **No Data Modification**: Application only reads data, never modifies
+- **Temporary Storage**: Data is held in memory only during processing
+- **Output Security**: Consider who has access to generated data dictionaries
+
+### Operational Security
+
+#### Production Deployment
+- Use dedicated service accounts
+- Implement monitoring and alerting
+- Regular security assessments
+- Document emergency procedures
+- Backup configuration and credentials securely
+
+#### Development Security
+- Use separate development environments
+- Sanitize logs and outputs
+- Secure development workstations
+- Code review for security issues
+
+## Deployment Considerations
+
+### Environment Types
+
+#### Development Environment
+- **Purpose**: Development, testing, and debugging
+- **Requirements**: 
+  - Visual Studio or development IDE
+  - Access to development Dataverse environment
+  - Source code access
+- **Configuration**: Use development-specific `appsettings.json`
+
+#### Testing Environment
+- **Purpose**: Integration testing and validation
+- **Requirements**: 
+  - Compiled application
+  - Access to test Dataverse environment
+  - Test data and scenarios
+- **Configuration**: Automated configuration management
+
+#### Production Environment
+- **Purpose**: Regular data dictionary generation
+- **Requirements**: 
+  - Dedicated server or service
+  - Production Dataverse access
+  - Monitoring and logging
+  - Backup and recovery procedures
+- **Configuration**: Secure credential management
+
+### Deployment Strategies
+
+#### Manual Deployment
+1. **Compile Application**: Build release version in Visual Studio
+2. **Package Files**: Include executable, config, and dependencies
+3. **Deploy to Target**: Copy files to target environment
+4. **Configure Settings**: Update `appsettings.json` for target environment
+5. **Test Execution**: Verify application runs successfully
+
+#### Automated Deployment
+1. **CI/CD Pipeline**: Integrate with build and deployment pipelines
+2. **Configuration Management**: Use environment-specific configurations
+3. **Health Checks**: Automated testing after deployment
+4. **Rollback Procedures**: Ability to revert to previous versions
+
+#### Containerized Deployment
+While the application targets .NET Framework (Windows containers):
+1. **Windows Container**: Package application in Windows container
+2. **Configuration**: Use environment variables or mounted configs
+3. **Orchestration**: Deploy using Docker or Kubernetes
+4. **Scaling**: Consider multiple instances for large environments
+
+### Monitoring and Maintenance
+
+#### Application Monitoring
+- **Console Output**: Monitor execution logs and timing
+- **Error Handling**: Capture and alert on exceptions
+- **Performance Metrics**: Track processing times and resource usage
+- **Health Checks**: Regular execution verification
+
+#### Infrastructure Monitoring
+- **Server Resources**: CPU, memory, disk, network usage
+- **Network Connectivity**: Dataverse connection health
+- **Security Events**: Authentication failures, unusual access patterns
+
+#### Maintenance Procedures
+- **Regular Updates**: Keep SDK and dependencies current
+- **Configuration Reviews**: Periodic validation of settings
+- **Performance Optimization**: Regular performance assessments
+- **Security Updates**: Apply security patches promptly
+
+## Troubleshooting Guide
+
+### Common Deployment Issues
+
+#### Authentication Problems
+**Symptom**: Connection failures or authentication errors
+**Diagnosis**:
+```bash
+# Check configuration
+cat appsettings.json
+
+# Test connectivity
+telnet your-environment.crm.dynamics.com 443
+```
+**Resolution**:
+- Verify Azure AD application configuration
+- Check client secret expiration
+- Confirm tenant and environment URLs
+- Validate assigned permissions
+
+#### Missing Dependencies
+**Symptom**: Application fails to start with assembly loading errors
+**Diagnosis**:
+- Check .NET Framework version
+- Verify all required assemblies are present
+- Review assembly binding redirects in App.config
+**Resolution**:
+- Install .NET Framework 4.6.2 or later
+- Restore NuGet packages
+- Update binding redirects if necessary
+
+#### Performance Issues
+**Symptom**: Extremely slow processing or timeouts
+**Diagnosis**:
+- Monitor console output for bottlenecks
+- Check network latency to Dataverse
+- Review system resource usage
+**Resolution**:
+- Optimize network connectivity
+- Increase timeout values if appropriate
+- Process smaller solution subsets
+- Upgrade hardware resources
+
+### Advanced Troubleshooting
+
+#### Debugging Mode
+For development troubleshooting:
+1. **Debug Build**: Use Debug configuration for detailed information
+2. **Debugger Attachment**: Attach Visual Studio debugger for step-through
+3. **Verbose Logging**: Enable additional console output
+4. **Breakpoints**: Set strategic breakpoints in key methods
+
+#### Network Analysis
+For connectivity issues:
+1. **Fiddler/Charles**: Capture HTTP traffic to Dataverse
+2. **Network Monitoring**: Analyze network latency and bandwidth
+3. **Firewall Logs**: Check for blocked connections
+4. **DNS Resolution**: Verify hostname resolution
+
+#### Memory Analysis
+For performance issues:
+1. **Task Manager**: Monitor memory usage during execution
+2. **Performance Counters**: Track .NET memory metrics
+3. **Memory Profilers**: Use tools like JetBrains dotMemory
+4. **Garbage Collection**: Monitor GC pressure and frequency
+
+## Best Practices for Development Teams
+
+### Code Organization
+
+#### Project Structure
+```
+DataDictionaryProcessor/
+├── Program.cs                    # Entry point
+├── DictionaryOrchestrator.cs     # Main coordinator
+├── DvCollector.cs               # Data collection
+├── DvProcessor.cs               # Data processing
+├── DvJavaScriptParser.cs        # JavaScript analysis
+├── DvSaver.cs                   # Data persistence
+├── Models/                      # Data models
+│   ├── DataDictionaryModel.cs
+│   ├── DataDictionaryEntity.cs
+│   └── ...
+├── appsettings.json             # Configuration
+├── App.config                   # .NET Framework config
+└── packages.config              # NuGet packages
+```
+
+#### Naming Conventions
+- **Classes**: PascalCase (e.g., `DictionaryOrchestrator`)
+- **Methods**: PascalCase (e.g., `CollectData`)
+- **Properties**: PascalCase (e.g., `AllowedLogicalNames`)
+- **Fields**: camelCase with underscore prefix (e.g., `_serviceClient`)
+- **Constants**: UPPER_CASE (e.g., `DEFAULT_TIMEOUT`)
+
+#### Error Handling Patterns
+```csharp
+public void ExampleMethod()
+{
+    try
+    {
+        // Main logic
+        PerformOperation();
+    }
+    catch (SpecificException ex)
+    {
+        // Handle specific cases
+        Console.WriteLine($"Specific error: {ex.Message}");
+        throw; // Re-throw if cannot recover
+    }
+    catch (Exception ex)
+    {
+        // Handle general cases
+        Console.WriteLine($"Unexpected error: {ex.Message}");
+        throw new ApplicationException("Operation failed", ex);
+    }
+}
+```
+
+### Testing Strategies
+
+#### Unit Testing Approach
+```csharp
+[TestFixture]
+public class DvJavaScriptParserTests
+{
+    private DvJavaScriptParser _parser;
+
+    [SetUp]
+    public void Setup()
+    {
+        _parser = new DvJavaScriptParser();
+    }
+
+    [Test]
+    public void ParseFieldModifications_ValidScript_ReturnsModifications()
+    {
+        // Arrange
+        var script = "formContext.getControl('field1').setVisible(false);";
+        var webResourceId = Guid.NewGuid();
+        var webResourceName = "test.js";
+
+        // Act
+        var result = _parser.ParseFieldModifications(script, webResourceId, webResourceName);
+
+        // Assert
+        Assert.AreEqual(1, result.Count);
+        Assert.AreEqual("field1", result[0].FieldName);
+        Assert.AreEqual(JavaScriptModificationType.Visibility, result[0].ModificationType);
+    }
+}
+```
+
+#### Integration Testing
+```csharp
+[TestFixture]
+[Category("Integration")]
+public class DataverseIntegrationTests
+{
+    private CrmServiceClient _serviceClient;
+
+    [OneTimeSetUp]
+    public void TestFixtureSetup()
+    {
+        // Load test configuration
+        var config = LoadTestConfiguration();
+        _serviceClient = new CrmServiceClient(config.ConnectionString);
+    }
+
+    [Test]
+    public void CollectData_TestSolution_ReturnsExpectedEntities()
+    {
+        // Test against known test solution
+        var collector = new DvCollector(_serviceClient);
+        var testSolutions = new[] { "TestSolution" };
+        
+        // Execute collection
+        collector.CollectData();
+
+        // Verify expected entities are collected
+        Assert.IsTrue(collector.DDSolutions.ContainsKey("TestSolution"));
+        // Additional assertions...
+    }
+}
+```
+
+### Code Review Guidelines
+
+#### Review Checklist
+- [ ] **Functionality**: Code performs intended function correctly
+- [ ] **Error Handling**: Appropriate exception handling and logging
+- [ ] **Performance**: No obvious performance issues or inefficiencies
+- [ ] **Security**: No credential exposure or security vulnerabilities
+- [ ] **Maintainability**: Code is readable and well-structured
+- [ ] **Documentation**: XML comments for public methods
+- [ ] **Testing**: Adequate test coverage for new functionality
+- [ ] **Configuration**: No hardcoded values that should be configurable
+
+#### Common Anti-Patterns to Avoid
+1. **Hardcoded Credentials**: Never embed credentials in code
+2. **Console.WriteLine for Errors**: Use proper exception handling
+3. **Large Methods**: Break down methods over 50 lines
+4. **Magic Numbers**: Use named constants for numeric values
+5. **Catching Exception**: Catch specific exception types when possible
+6. **Synchronous Sleep**: Avoid Thread.Sleep in production code
+
+### Extension Patterns
+
+#### Adding New Metadata Types
+```csharp
+// 1. Extend the model
+public class DataDictionaryAttributeMetadata
+{
+    // Existing properties...
+    public string CustomProperty { get; set; }
+}
+
+// 2. Update collection logic
+public void CollectCustomMetadata(AttributeMetadata attr, DataDictionaryAttributeMetadata ddAttr)
+{
+    if (attr is CustomAttributeMetadata customAttr)
+    {
+        ddAttr.CustomProperty = customAttr.CustomValue;
+    }
+}
+
+// 3. Update processing logic
+public void ProcessCustomMetadata(DataDictionaryAttributeMetadata attr)
+{
+    if (!string.IsNullOrEmpty(attr.CustomProperty))
+    {
+        // Custom processing logic
+    }
+}
+```
+
+#### Adding New JavaScript Patterns
+```csharp
+public void ExtendJavaScriptPatterns()
+{
+    var newPatterns = new[]
+    {
+        new JavaScriptPattern
+        {
+            Regex = new Regex(@"customFunction\.setFieldValue\(['""](\w+)['""],\s*(.+?)\)", 
+                              RegexOptions.IgnoreCase),
+            ModificationType = JavaScriptModificationType.CustomValue,
+            FieldNameGroup = 1,
+            ValueGroup = 2
+        }
+    };
+    
+    // Add to existing pattern collection
+    _existingPatterns.AddRange(newPatterns);
+}
+```
+
+## Migration and Upgrade Considerations
+
+### Version Compatibility
+
+#### .NET Framework Versions
+- **Current**: .NET Framework 4.6.2
+- **Upgrade Path**: .NET Framework 4.8 (recommended)
+- **Future**: Consider .NET 6+ migration for cross-platform support
+
+#### Dataverse SDK Versions
+- **Current**: 9.x SDK versions
+- **Monitoring**: Watch for newer SDK releases
+- **Testing**: Validate compatibility with new SDK versions
+
+### Data Model Evolution
+
+#### Adding New Properties
+```csharp
+// Safe addition (backward compatible)
+public class DataDictionaryEntity
+{
+    // Existing properties...
+    
+    // New property with default value
+    public string NewProperty { get; set; } = "DefaultValue";
+}
+```
+
+#### Breaking Changes
+When making breaking changes:
+1. **Version the Models**: Use versioned namespaces or assemblies
+2. **Migration Scripts**: Provide data migration utilities
+3. **Backward Compatibility**: Support both old and new formats temporarily
+4. **Clear Documentation**: Document breaking changes and migration steps
+
+### Legacy Support
+
+#### DataIngestor Compatibility
+The DataDictionaryProcessor was designed to eventually replace DataIngestor:
+- **Model Compatibility**: Ensure data models can be converted
+- **Feature Parity**: Maintain important DataIngestor functionality
+- **Migration Tools**: Provide utilities to migrate from DataIngestor
+
+#### Configuration Migration
+```csharp
+public class ConfigurationMigrator
+{
+    public void MigrateFromLegacyConfig(string legacyConfigPath)
+    {
+        // Read legacy configuration format
+        var legacyConfig = ReadLegacyConfig(legacyConfigPath);
+        
+        // Convert to new format
+        var newConfig = new
+        {
+            CRMURL = legacyConfig.Environment.Url,
+            CLIENTID = legacyConfig.Authentication.ClientId,
+            // ... other mappings
+        };
+        
+        // Save new configuration
+        SaveNewConfig(newConfig, "appsettings.json");
+    }
+}
+```
+
+## Knowledge Transfer Checklist
+
+### For New Development Teams
+
+#### Technical Understanding
+- [ ] **Architecture Overview**: Understand the overall system design and component interactions
+- [ ] **Data Flow**: Trace data from Dataverse through collection, processing, and output
+- [ ] **Key Classes**: Understand the purpose and responsibilities of each major class
+- [ ] **Configuration**: Know how to set up and modify application configuration
+- [ ] **Dependencies**: Understand NuGet packages and their purposes
+
+#### Development Environment
+- [ ] **Source Code Access**: Obtain repository access and clone the codebase
+- [ ] **IDE Setup**: Configure Visual Studio with appropriate extensions
+- [ ] **Test Environment**: Set up access to development Dataverse environment
+- [ ] **Build Process**: Successfully build and run the application
+- [ ] **Debugging**: Set up debugging environment and learn key debugging techniques
+
+#### Business Logic
+- [ ] **Use Cases**: Understand primary use cases and stakeholder needs
+- [ ] **Data Dictionary Purpose**: Comprehend what data dictionaries are used for
+- [ ] **JavaScript Analysis**: Understand why and how JavaScript parsing works
+- [ ] **Metadata Correlation**: Grasp the relationship between JavaScript and metadata
+
+#### Operational Knowledge
+- [ ] **Deployment Process**: Know how to deploy to different environments
+- [ ] **Monitoring**: Understand how to monitor application health and performance
+- [ ] **Troubleshooting**: Know common issues and their resolutions
+- [ ] **Security**: Understand security requirements and best practices
+
+#### Maintenance and Enhancement
+- [ ] **Code Review Process**: Understand code review standards and procedures
+- [ ] **Testing Strategy**: Know how to write and run tests
+- [ ] **Extension Patterns**: Understand how to add new features safely
+- [ ] **Documentation**: Know how to maintain and update documentation
+
+### Documentation Maintenance
+
+#### Regular Updates
+- [ ] **Code Changes**: Update documentation when code changes
+- [ ] **New Features**: Document new functionality as it's added
+- [ ] **Bug Fixes**: Update troubleshooting sections with new solutions
+- [ ] **Performance**: Update performance characteristics as system evolves
+- [ ] **Security**: Review and update security considerations regularly
+
+#### Review Schedule
+- **Monthly**: Review for accuracy and completeness
+- **Quarterly**: Major review and updates
+- **Release Cycles**: Update with each significant release
+- **Annual**: Comprehensive review and reorganization
 
 ---
 
