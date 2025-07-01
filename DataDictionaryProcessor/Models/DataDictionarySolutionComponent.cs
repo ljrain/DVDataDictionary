@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataDictionary.Models
 {
@@ -19,7 +15,7 @@ namespace DataDictionary.Models
 
         public override string ToString()
         {
-                
+
             return $"{ComponentTypeName} (Type: {ComponentType}, Is Metadata: {IsMetadataName})";
         }
 

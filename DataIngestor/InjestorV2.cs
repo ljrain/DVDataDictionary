@@ -1,25 +1,17 @@
 ﻿using DataDictionary.Models;
 //using DataIngestor.Models;
-using Microsoft.Crm.Sdk.Messages;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
-using Microsoft.Xrm.Sdk.Organization;
 using Microsoft.Xrm.Sdk.Query;
-using Microsoft.Xrm.Sdk.Workflow;
 using Microsoft.Xrm.Tooling.Connector;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Workflow.Runtime.Tracking;
 using System.Xml.Linq;
 
 namespace DataIngestor
@@ -28,7 +20,7 @@ namespace DataIngestor
     {
         public InjestorV2(IOrganizationService servClient)
         {
-                _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
+            _service = servClient ?? throw new ArgumentNullException(nameof(servClient));
         }
 
         #region Private Fields
@@ -146,7 +138,7 @@ namespace DataIngestor
                 SaveToDataverse();
 
                 timerGlobal.Stop(); // Stop the timer
-                 Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
+                Console.WriteLine($"Processing Complete. Time elapsed: {timerGlobal.Elapsed}"); // Use timerGlobal
             }
 
             #region Display Web Resource Modifications
@@ -1038,7 +1030,7 @@ namespace DataIngestor
                         // --- Upsert logic: use ljr_displayname as unique key (adjust if you have a better unique key) ---
                         var query = new QueryExpression("ljr_webresource")
                         {
-                            ColumnSet = new ColumnSet("ljr_webresourceid","ljr_name","ljr_displayname"),
+                            ColumnSet = new ColumnSet("ljr_webresourceid", "ljr_name", "ljr_displayname"),
                             Criteria = new FilterExpression
                             {
                                 FilterOperator = LogicalOperator.And

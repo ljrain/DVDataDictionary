@@ -1,15 +1,9 @@
-﻿using Microsoft.Rest;
-using Microsoft.Xrm.Sdk;
+﻿using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Tooling.Connector;
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Metadata;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web.Services.Description;
 
 namespace DataDictionaryProcessor
 {
@@ -74,17 +68,17 @@ namespace DataDictionaryProcessor
 
         public void SaveToDataverse()
         {
-         
+
             // Save any web resources first so we can relate to them
 
-            
+
             foreach (var resource in _ddModel.WebResources)
             {
                 Console.WriteLine($"Saving web resource: {resource.Value}");
                 SaveJavascriptToDataverse();
 
             }
-            
+
             // Use ExecuteMultipleRequest for batch saving to Dataverse
             const int batchSize = 1000;
 
@@ -332,7 +326,7 @@ namespace DataDictionaryProcessor
                         else
                         {
                             // Create new record
-                           _serviceClient.Create(entity);
+                            _serviceClient.Create(entity);
                         }
                     }
                 }
@@ -347,11 +341,8 @@ namespace DataDictionaryProcessor
         {
             Console.WriteLine("Saving JavaScript field modifications to Dataverse...");
 
-            //foreach (var ddSolution in _ddModel.)
+            //foreach (var solutionName in _ddModel.Solutions)
             //{
-            //    if (ddSolution.WebResources == null || ddSolution.WebResources.Count == 0)
-            //        continue;
-
             //    foreach (var webResource in ddSolution.WebResources)
             //    {
             //        if (webResource.FieldModifications == null || webResource.FieldModifications.Count == 0)
@@ -433,55 +424,55 @@ namespace DataDictionaryProcessor
         private void SaveJavascriptToDataverse()
         {
             // Save all web resources to Dataverse (Upsert)
-          
-                foreach (var webResource in _ddModel.WebResources)
+
+            foreach (var webResource in _ddModel.WebResources)
+            {
+                try
                 {
-                    try
+                    // --- Upsert logic: use ljr_displayname as unique key (adjust if you have a better unique key) ---
+                    var query = new QueryExpression("ljr_webresource")
                     {
-                        // --- Upsert logic: use ljr_displayname as unique key (adjust if you have a better unique key) ---
-                        var query = new QueryExpression("ljr_webresource")
+                        ColumnSet = new ColumnSet("ljr_webresourceid", "ljr_name", "ljr_displayname"),
+                        Criteria = new FilterExpression
                         {
-                            ColumnSet = new ColumnSet("ljr_webresourceid", "ljr_name", "ljr_displayname"),
-                            Criteria = new FilterExpression
-                            {
-                                FilterOperator = LogicalOperator.And
-                            }
-                        };
-                        query.Criteria.AddCondition("ljr_displayname", ConditionOperator.Equal, webResource.Value.DisplayName);
-
-                        var result = _serviceClient.RetrieveMultiple(query);
-
-                        var entity = new Entity("ljr_webresource");
-                        entity["ljr_displayname"] = webResource.Value.DisplayName;
-                        entity["ljr_name"] = webResource.Value.DisplayName;
-                        entity["ljr_javascript"] = webResource.Value.Content;
-                        entity["ljr_dependencyxml"] = webResource.Value.DependencyXml;
-                        if (!string.IsNullOrWhiteSpace(webResource.Value.ParsedDependenciesJson))
-                            entity["ljr_parseddependencies"] = webResource.Value.ParsedDependenciesJson;
-
-                        Guid webResourceRecordId;
-                        if (result.Entities.Count > 0)
-                        {
-                            // Update existing record
-                            entity.Id = result.Entities[0].Id;
-                            _serviceClient.Update(entity);
-                            webResourceRecordId = entity.Id;
-                            Console.WriteLine($"Updated Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
+                            FilterOperator = LogicalOperator.And
                         }
-                        else
-                        {
-                            // Create new record
-                            webResourceRecordId = _serviceClient.Create(entity);
-                            Console.WriteLine($"Created Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
-                        }
+                    };
+                    query.Criteria.AddCondition("ljr_displayname", ConditionOperator.Equal, webResource.Value.DisplayName);
 
-                        // Save dependencies for this web resource
-                        SaveWebResourceDependenciesToDataverse(webResource.Value, webResourceRecordId);
-                    }
-                    catch (Exception ex)
+                    var result = _serviceClient.RetrieveMultiple(query);
+
+                    var entity = new Entity("ljr_webresource");
+                    entity["ljr_displayname"] = webResource.Value.DisplayName;
+                    entity["ljr_name"] = webResource.Value.DisplayName;
+                    entity["ljr_javascript"] = webResource.Value.Content;
+                    entity["ljr_dependencyxml"] = webResource.Value.DependencyXml;
+                    if (!string.IsNullOrWhiteSpace(webResource.Value.ParsedDependenciesJson))
+                        entity["ljr_parseddependencies"] = webResource.Value.ParsedDependenciesJson;
+
+                    Guid webResourceRecordId;
+                    if (result.Entities.Count > 0)
                     {
-                        Console.WriteLine($"Error upserting Web Resource '{webResource.Value.DisplayName}': {ex.Message}");
+                        // Update existing record
+                        entity.Id = result.Entities[0].Id;
+                        _serviceClient.Update(entity);
+                        webResourceRecordId = entity.Id;
+                        Console.WriteLine($"Updated Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
                     }
+                    else
+                    {
+                        // Create new record
+                        webResourceRecordId = _serviceClient.Create(entity);
+                        Console.WriteLine($"Created Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
+                    }
+
+                    // Save dependencies for this web resource
+                    SaveWebResourceDependenciesToDataverse(webResource.Value, webResourceRecordId);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error upserting Web Resource '{webResource.Value.DisplayName}': {ex.Message}");
+                }
             }
 
             // Save JavaScript field modifications to Dataverse

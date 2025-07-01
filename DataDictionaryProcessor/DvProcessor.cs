@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataDictionaryProcessor
 {
@@ -185,9 +183,9 @@ namespace DataDictionaryProcessor
                         {
                             attribute.Metadata.IsHiddenByScript = true;
                             if (matchingModification.ModificationType == JavaScriptModificationType.Visibility)
-                            attribute.Metadata.ScriptDefaultValue = matchingModification.ModificationValue;
+                                attribute.Metadata.ScriptDefaultValue = matchingModification.ModificationValue;
                             attribute.Metadata.ModifyingWebResources = matchingModification.WebResourceName;
-                            
+
 
                             DataDictionaryWebResource webRes = new DataDictionaryWebResource();
                             webRes.WebResourceId = matchingModification.WebResourceId;

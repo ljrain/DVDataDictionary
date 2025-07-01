@@ -1,9 +1,5 @@
-﻿using Microsoft.Crm.Sdk;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataDictionary.Models
 {
@@ -11,7 +7,7 @@ namespace DataDictionary.Models
     {
         public string FullName { get; set; }
         //public Guid AttributeId { get; set; }
-        public Guid AttributeOf { get;set; }
+        public Guid AttributeOf { get; set; }
         public string AttributeName { get; set; }
         //public Guid AttributeTypeId { get; set; }
         //public string AttributeTypeName { get; set; }
@@ -33,7 +29,7 @@ namespace DataDictionary.Models
         public List<DataDictionaryJavaScriptFieldModification> Modifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
 
         public void ApplyValues()
-        { 
+        {
             if (this.Metadata == null)
             {
                 throw new Exception("Metadata cannot be null");
@@ -41,7 +37,7 @@ namespace DataDictionary.Models
             this.FullName = this.Metadata.Table + "." + this.Metadata.ColumnLogical;
             this.LogicalName = this.Metadata.ColumnLogical;
             this.AttributeName = this.Metadata.DisplayName;
-            
+
 
         }
     }

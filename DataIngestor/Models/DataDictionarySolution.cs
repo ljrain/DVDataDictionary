@@ -1,10 +1,7 @@
 ﻿//using DataIngestor.Models;
-using DataDictionary.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 
 namespace DataDictionary.Models
@@ -45,7 +42,7 @@ namespace DataDictionary.Models
         }
 
         public void AddAttribute(DataDictionarySolution ddSolution, DataDictionaryAttribute ddAttr)
-        { 
+        {
             foreach (DataDictionaryEntity ddEntity in ddSolution.Entities)
             {
                 if (ddEntity.EntityId == ddAttr.AttributeOf)
@@ -54,7 +51,7 @@ namespace DataDictionary.Models
                     return;
                 }
                 else
-                { 
+                {
                     Console.WriteLine($"Entity {ddEntity.EntityId} does not match AttributeOf {ddAttr.AttributeOf}");
                 }
             }

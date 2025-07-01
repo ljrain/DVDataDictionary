@@ -1,9 +1,6 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Xrm.Tooling.Connector;
-using Microsoft.Xrm.Sdk;
-using System.Configuration;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.Json; // Add this namespace
+using System;
 
 namespace DataIngestor
 {

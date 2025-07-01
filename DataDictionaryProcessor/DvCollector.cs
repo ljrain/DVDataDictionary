@@ -1,6 +1,5 @@
 ﻿using DataDictionary.Models;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Client;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Metadata.Query;
@@ -9,9 +8,6 @@ using Microsoft.Xrm.Tooling.Connector;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web.Services.Description;
 
 namespace DataDictionaryProcessor
 {
@@ -54,12 +50,12 @@ namespace DataDictionaryProcessor
             get { return _allowedLogicalNames; }
             set { _allowedLogicalNames = value; }
         }
-        
+
         public Dictionary<string, List<string>> AllowedTableAttributes
         {
             get { return _allowedtableAttributes; }
             set { _allowedtableAttributes = value; }
-        }   
+        }
 
         public string[] SolutionObjectIds
         {
@@ -95,14 +91,14 @@ namespace DataDictionaryProcessor
                 //QuerySolutionComponentAttributes(new Guid(ddSolution.SolutionId));
 
             }
-            _solutionObjectIds= GetWebResourceObjectIds();
-            
+            _solutionObjectIds = GetWebResourceObjectIds();
+
 
             Console.WriteLine("Web Resource Object IDs collected: " + _solutionObjectIds.Length);
             List<Entity> webResources = GetWebResourcesByObjectIds(_solutionObjectIds);
             foreach (var webResource in webResources)
             {
-                
+
                 _ddSolutions[_ddSolutions.FirstOrDefault().Key].WebResources.Add(new DataDictionaryWebResource
                 {
                     WebResourceId = webResource.GetAttributeValue<Guid>("webresourceid"),
@@ -121,7 +117,7 @@ namespace DataDictionaryProcessor
                     webResource.GetAttributeValue<Guid>("webresourceid"),
                     webResource.GetAttributeValue<string>("name"));
             }
-            
+
             ProcessEntities();
             Console.WriteLine("Entities processed: " + _ddSolutions.Values.Sum(s => s.Entities.Count));
             Console.WriteLine("Allowed Logical Names Count: : " + _allowedLogicalNames.Count);

@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataDictionary.Models
 {
     public class DataDictionaryAttribute
     {
         public Guid AttributeId { get; set; }
-        public Guid AttributeOf { get;set; }
+        public Guid AttributeOf { get; set; }
         public string AttributeName { get; set; }
         public Guid AttributeTypeId { get; set; }
         public string AttributeTypeName { get; set; }
