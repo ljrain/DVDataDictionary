@@ -341,84 +341,108 @@ namespace DataDictionaryProcessor
         {
             Console.WriteLine("Saving JavaScript field modifications to Dataverse...");
 
-            //foreach (var solutionName in _ddModel.Solutions)
-            //{
-            //    foreach (var webResource in ddSolution.WebResources)
-            //    {
-            //        if (webResource.FieldModifications == null || webResource.FieldModifications.Count == 0)
-            //            continue;
+            // Field modifications are stored as a child under the attribute metadata
+            foreach (var entityPair in _ddModel.Entities)
+            {
+                foreach (var attr in entityPair.Value.Attributes)
+                {
+                    if (attr.Modifications == null || attr.Modifications.Count == 0)
+                        continue;
 
-            //        foreach (var modification in webResource.FieldModifications)
-            //        {
-            //            try
-            //            {
-            //                // 1. Lookup ljr_webresource using ljr_displayname as the key to build the EntityReference
-            //                var webResourceQuery = new QueryExpression("ljr_webresource")
-            //                {
-            //                    ColumnSet = new ColumnSet("ljr_webresourceid", "ljr_name", "ljr_displayname"),
-            //                    Criteria = new FilterExpression
-            //                    {
-            //                        FilterOperator = LogicalOperator.And
-            //                    }
-            //                };
-            //                webResourceQuery.Criteria.AddCondition("ljr_displayname", ConditionOperator.Equal, webResource.DisplayName);
-            //                var webResourceResult = _serviceClient.RetrieveMultiple(webResourceQuery);
+                    foreach (var modification in attr.Modifications)
+                    {
+                        // Compose alternate key (fieldname + entityname + modificationtype)
+                        var altKey = $"{modification.FieldName}|{attr.Metadata.Table}|{modification.ModificationType}";
 
-            //                if (webResourceResult.Entities.Count == 0)
-            //                {
-            //                    Console.WriteLine($"Web Resource '{webResource.DisplayName}' not found. Skipping modification save.");
-            //                    continue;
-            //                }
+                        // Query to check if record exists
+                        var query = new QueryExpression("ljr_javascriptfieldmodification")
+                        {
+                            ColumnSet = new ColumnSet("ljr_name"),
+                            Criteria = new FilterExpression
+                            {
+                                FilterOperator = LogicalOperator.And
+                            }
+                        };
+                        query.Criteria.AddCondition("ljr_name", ConditionOperator.Equal, altKey);
+                        
+                        var result = _serviceClient.RetrieveMultiple(query);
 
-            //                var webResourceId = webResourceResult.Entities[0].GetAttributeValue<Guid>("ljr_webresourceid");
+                        var jsModEntity = new Entity("ljr_javascriptfieldmodification");
+                        jsModEntity["ljr_fieldname"] = modification.FieldName;
 
-            //                // 2. Lookup for the existence of the modification record (upsert logic)
-            //                var modificationQuery = new QueryExpression("ljr_javascriptfieldmodification")
-            //                {
-            //                    ColumnSet = new ColumnSet("ljr_javascriptfieldmodificationid"),
-            //                    Criteria = new FilterExpression
-            //                    {
-            //                        FilterOperator = LogicalOperator.And
-            //                    }
-            //                };
-            //                modificationQuery.Criteria.AddCondition("ljr_webresourcelookup", ConditionOperator.Equal, webResourceId);
-            //                modificationQuery.Criteria.AddCondition("ljr_fieldname", ConditionOperator.Equal, modification.FieldName);
-            //                modificationQuery.Criteria.AddCondition("ljr_modificationtype", ConditionOperator.Equal, modification.ModificationType.ToString());
+                        jsModEntity["ljr_name"] = altKey;
+                        jsModEntity["ljr_modificationtype"] = modification.ModificationType.ToString();
+                        if (!string.IsNullOrWhiteSpace(modification.ModificationValue))
+                            jsModEntity["ljr_modificationvalue"] = modification.ModificationValue;
+                        if (!string.IsNullOrWhiteSpace(modification.JavaScriptCode))
+                            jsModEntity["ljr_javascriptcode"] = modification.JavaScriptCode;
+                        if (modification.LineNumber.HasValue)
+                            jsModEntity["ljr_linenumber"] = modification.LineNumber.Value;
+                        if (!string.IsNullOrWhiteSpace(modification.AttributeTable))
+                            jsModEntity["ljr_attributetable"] = modification.AttributeTable;
+                        if (!string.IsNullOrWhiteSpace(modification.AttributeLogicalName))
+                            jsModEntity["ljr_attributelogicalname"] = modification.AttributeLogicalName;
 
-            //                var modificationResult = _serviceClient.RetrieveMultiple(modificationQuery);
+                        // Optionally relate to parent attribute metadata if available
+                        // (Assumes ljr_datadictionaryattributemetadata has alternate key: table + columnlogical)
+                        if (!string.IsNullOrWhiteSpace(attr.Metadata.Table) && !string.IsNullOrWhiteSpace(attr.Metadata.ColumnLogical))
+                        {
+                            var attrMetaQuery = new QueryExpression("ljr_datadictionaryattributemetadata")
+                            {
+                                ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
+                                Criteria = new FilterExpression
+                                {
+                                    FilterOperator = LogicalOperator.And
+                                }
+                            };
+                            attrMetaQuery.Criteria.AddCondition("ljr_table", ConditionOperator.Equal, attr.Metadata.Table);
+                            attrMetaQuery.Criteria.AddCondition("ljr_columnlogical", ConditionOperator.Equal, attr.Metadata.ColumnLogical);
+                            var attrMetaResult = _serviceClient.RetrieveMultiple(attrMetaQuery);
 
-            //                var entity = new Entity("ljr_javascriptfieldmodification");
-            //                entity["ljr_webresourcelookup"] = new EntityReference("ljr_webresource", webResourceId);
-            //                entity["ljr_fieldname"] = modification.FieldName;
-            //                entity["ljr_modificationtype"] = modification.ModificationType.ToString();
-            //                entity["ljr_modificationvalue"] = modification.ModificationValue;
-            //                entity["ljr_javascriptcode"] = modification.JavaScriptCode;
-            //                entity["ljr_linenumber"] = modification.LineNumber;
-            //                entity["ljr_notes"] = modification.Notes;
-            //                entity["ljr_parsedon"] = modification.ParsedOn;
-            //                entity["ljr_name"] = $"{webResource.DisplayName} - {modification.FieldName} - ({modification.ModificationType})";
+                            var attrMetaId = attrMetaResult.Entities[0].Id;
+                            var webName = attr.Metadata.ModifyingWebResources;
 
-            //                if (modificationResult.Entities.Count > 0)
-            //                {
-            //                    // Update existing record
-            //                    entity.Id = modificationResult.Entities[0].Id;
-            //                    _serviceClient.Update(entity);
-            //                    Console.WriteLine($"Updated JavaScript Field Modification: {modification.FieldName} ({modification.ModificationType})");
-            //                }
-            //                else
-            //                {
-            //                    // Create new record
-            //                    _serviceClient.Create(entity);
-            //                    Console.WriteLine($"Created JavaScript Field Modification: {modification.FieldName} ({modification.ModificationType})");
-            //                }
-            //            }
-            //            catch (Exception ex)
-            //            {
-            //                Console.WriteLine($"Error saving JavaScript Field Modification '{modification.FieldName}' for Web Resource '{webResource.DisplayName}': {ex.Message}");
-            //            }
-            //        }
-            //    }
-            //}
+                            // Query to find ljr_webresource by display name (webName), returning only the ID
+                            var webResourceId = Guid.Empty;
+                            if (!string.IsNullOrWhiteSpace(webName))
+                            {
+                                var webResourceQuery = new QueryExpression("ljr_webresource")
+                                {
+                                    ColumnSet = new ColumnSet("ljr_webresourceid"),
+                                    Criteria = new FilterExpression
+                                    {
+                                        FilterOperator = LogicalOperator.And
+                                    }
+                                };
+                                webResourceQuery.Criteria.AddCondition("ljr_displayname", ConditionOperator.Equal, webName);
+
+                                var webResourceResult = _serviceClient.RetrieveMultiple(webResourceQuery);
+                                if (webResourceResult.Entities.Count > 0)
+                                {
+                                    webResourceId = webResourceResult.Entities[0].Id;
+                                }
+                            }
+
+                            jsModEntity["ljr_webresourcelookup"] = new EntityReference("ljr_webresource", webResourceId);
+
+                        }
+
+                        if (result.Entities.Count > 0)
+                        {
+                            // Update existing record
+                            jsModEntity.Id = result.Entities[0].Id;
+                            _serviceClient.Update(jsModEntity);
+                            Console.WriteLine($"Updated JavaScript field modification: {altKey}");
+                        }
+                        else
+                        {
+                            // Create new record
+                            _serviceClient.Create(jsModEntity);
+                            Console.WriteLine($"Created JavaScript field modification: {altKey}");
+                        }
+                    }
+                }
+            }
         }
 
         private void SaveJavascriptToDataverse()

@@ -185,7 +185,7 @@ namespace DataDictionaryProcessor
                             if (matchingModification.ModificationType == JavaScriptModificationType.Visibility)
                                 attribute.Metadata.ScriptDefaultValue = matchingModification.ModificationValue;
                             attribute.Metadata.ModifyingWebResources = matchingModification.WebResourceName;
-
+                          
 
                             DataDictionaryWebResource webRes = new DataDictionaryWebResource();
                             webRes.WebResourceId = matchingModification.WebResourceId;
