@@ -76,7 +76,7 @@ namespace DataDictionaryProcessor
              * 3) Attribute Metadata
              */
             // below will be a parameter or setting that accepts an array of solution unique names
-            GetSolutions(new string[] { "samplesolution" });
+            GetSolutions(new string[] { "partnertracker" });
             Console.WriteLine("Solutions collected: " + _ddSolutions.Count);
 
             // Iterate through the dictionary and pass each DataDictionarySolution object to GetComponentsInSolution
