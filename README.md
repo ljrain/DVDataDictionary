@@ -1,73 +1,144 @@
-# DataDictionary Plugin for Dataverse
+# DVDataDictionary - Automated Data Dictionary Generation for Microsoft Dataverse
 
 ## Overview
 
-The **DataDictionary** solution is a C# plugin for Microsoft Dataverse (Dynamics 365) that generates a data dictionary for specified solutions. It retrieves entities, fields, and JavaScript web resources, analyzes script references, and outputs the results as JSON and CSV files attached to Notes in Dataverse.
+**DVDataDictionary** is a comprehensive solution for automatically generating detailed data dictionaries from Microsoft Dataverse (Dynamics 365) environments. The solution analyzes solution metadata, entity structures, field configurations, and JavaScript customizations to produce thorough documentation that helps organizations understand and maintain their Dataverse implementations.
 
-## How It Works
+## Why DVDataDictionary?
 
-- The main entry point is `DataDictionaryPlugin` (implements `IPlugin`).
-- The plugin expects an input parameter `SolutionNames` (string or string array) specifying the unique names of Dataverse solutions to process.
-- For each solution, it:
-  - Retrieves all entities and their metadata.
-  - Retrieves all fields for those entities.
-  - Retrieves all web resources (e.g., JavaScript files).
-  - Analyzes which scripts reference which fields.
-  - Generates a JSON and CSV data dictionary.
-  - Attaches these files as Notes (annotation records) in Dataverse.
+Managing Dataverse customizations becomes increasingly complex as organizations scale their implementations. DVDataDictionary addresses critical documentation challenges:
 
-## Key Classes
+- **Automated Documentation**: Eliminates manual effort in creating and maintaining data dictionaries
+- **JavaScript Analysis**: Discovers hidden business logic by analyzing form scripts and field modifications
+- **Comprehensive Coverage**: Documents entities, attributes, relationships, and customizations in one unified view
+- **Metadata Correlation**: Links JavaScript behaviors with field metadata for complete understanding
+- **Multiple Output Formats**: Generates JSON and CSV outputs for different consumption needs
+- **Change Tracking**: Helps identify what customizations exist and how they interact
 
-- **DataDictionaryPlugin**: Main plugin logic.
-- **WebResourceInfo**: Represents a Dataverse web resource.
-- **FieldMetadata**: (Not shown) Represents metadata for a field.
-- **FormFieldInspector**: (Not shown) Used to inspect form field visibility and locations.
-- **FieldFormLocation**: (Not shown) Represents a field's location on a form.
+## Project Structure
 
-## Requirements
+The DVDataDictionary solution consists of two main components:
 
-- **.NET Framework 4.6.2**
-- Microsoft Dataverse (Dynamics 365) environment
-- Plugin Registration Tool or equivalent for deployment
+### DataDictionary
+Core library containing:
+- **Plugin Architecture**: Dataverse plugin for in-environment execution
+- **Data Models**: Comprehensive models for solutions, entities, attributes, and web resources
+- **Metadata Processing**: Core logic for extracting and organizing Dataverse metadata
 
-## Dependencies
+### DataDictionaryProcessor  
+Console application providing:
+- **Standalone Processing**: Command-line tool for automated data dictionary generation
+- **JavaScript Analysis**: Advanced parsing of JavaScript code for field modifications
+- **Batch Processing**: Efficient handling of large Dataverse solutions
+- **Flexible Output**: Configurable output formats and destinations
 
-- Microsoft.Xrm.Sdk
-- Microsoft.Xrm.Sdk.Query
-- Microsoft.Xrm.Sdk.Metadata
-- Microsoft.Xrm.Sdk.Messages
-- Microsoft.Crm.Sdk.Messages
+## Key Features
 
-All dependencies are standard for Dataverse/Dynamics 365 plugin development.
+### Metadata Extraction
+- Complete solution component analysis (entities, attributes, forms, views)
+- Entity relationship mapping
+- Field-level metadata including data types, constraints, and configurations
+- Web resource inventory and analysis
 
-## Setup & Usage
+### JavaScript Analysis
+- **Field Modification Detection**: Identifies JavaScript that modifies field visibility, requirements, or values
+- **Business Logic Discovery**: Documents custom behaviors implemented in form scripts
+- **Dependency Tracking**: Maps relationships between scripts and the fields they affect
+- **API Pattern Recognition**: Identifies common Dataverse API usage patterns
 
-1. **Build the Solution**  
-   Ensure you are targeting .NET Framework 4.6.2.
+### Documentation Generation
+- **Unified Data Dictionaries**: Single source of truth for solution documentation
+- **Cross-Reference Correlation**: Links metadata with behavioral modifications
+- **Multiple Formats**: JSON for programmatic access, CSV for business users
+- **Comprehensive Coverage**: Documents both standard configuration and custom behaviors
 
-2. **Register the Plugin**  
-   Use the Plugin Registration Tool to register `DataDictionaryPlugin` in your Dataverse environment.
+## Getting Started
 
-3. **Configure the Step**  
-   - Register the step on a message (e.g., custom action or workflow).
-   - Pass the `SolutionNames` input parameter (comma-separated string or string array).
+### Prerequisites
+- **.NET Framework 4.6.2** or higher
+- **Microsoft Dataverse Environment** with appropriate permissions
+- **Azure AD Application Registration** for authentication
 
-4. **Run the Plugin**  
-   - The plugin will generate and attach the data dictionary files as Notes.
-   - Check the Plugin Trace Log for detailed execution traces and troubleshooting.
+### Quick Start
 
-## Troubleshooting
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/ljrain/DVDataDictionary.git
+   cd DVDataDictionary
+   ```
 
-- Ensure the `SolutionNames` parameter is provided.
-- Review the Plugin Trace Log for detailed step-by-step traces.
-- If Notes are not created, check user permissions and that the plugin is running in the correct context.
-- If you see errors about missing entities or web resources, ensure your solutions are published and all referenced components exist.
+2. **Choose Your Approach**
+   
+   **Option A: Console Application (Recommended)**
+   - Navigate to [DataDictionaryProcessor/README.md](./DataDictionaryProcessor/README.md)
+   - Follow setup instructions for standalone processing
+   
+   **Option B: Dataverse Plugin**  
+   - Navigate to [DataDictionary/README.md](./DataDictionary/README.md)
+   - Follow plugin registration and deployment instructions
+
+3. **Configure Authentication**
+   - Set up Azure AD application with Dataverse permissions
+   - Configure connection settings (see component-specific documentation)
+
+4. **Run Your First Analysis**
+   - Specify target Dataverse solutions
+   - Execute data dictionary generation
+   - Review generated documentation
+
+## Documentation
+
+- **[DataDictionaryProcessor Guide](./DataDictionaryProcessor/README.md)** - Console application setup and usage
+- **[Developer Guide](./DataDictionaryProcessor/developer_guide.md)** - Comprehensive technical documentation and knowledge transfer guide
+- **[Architecture Documentation](./docs/)** - Detailed architectural analysis and recommendations
+
+## Use Cases
+
+### Solution Documentation
+Generate comprehensive documentation for Dataverse solutions during development, deployment, or maintenance phases.
+
+### Custom Code Analysis  
+Understand the impact of JavaScript customizations on form behavior and field interactions.
+
+### Change Impact Assessment
+Analyze how modifications to entities or fields might affect existing customizations.
+
+### Knowledge Transfer
+Provide new team members with complete understanding of solution structure and behaviors.
+
+### Compliance and Auditing
+Document system configurations and customizations for regulatory compliance.
+
+## Technology Stack
+
+- **.NET Framework 4.6.2**: Core runtime environment
+- **Microsoft Dataverse SDK**: Native integration with Dataverse APIs
+- **JavaScript Parsing**: Custom analysis engine for form script processing
+- **JSON/CSV Output**: Multiple format support for different use cases
 
 ## Contributing
 
-- Follow standard C# and Dataverse plugin development practices.
-- Add new features by extending the plugin or supporting classes.
+We welcome contributions! Please see our contributing guidelines:
+
+1. Review the [Developer Guide](./DataDictionaryProcessor/developer_guide.md) for technical details
+2. Check existing issues and feature requests
+3. Create feature branches for new functionality
+4. Include appropriate tests and documentation
+5. Submit pull requests with clear descriptions
+
+## Support
+
+For questions, issues, or feature requests:
+
+1. **Technical Documentation**: Check the [Developer Guide](./DataDictionaryProcessor/developer_guide.md)
+2. **Architecture Questions**: Review the [Architecture Documentation](./docs/)
+3. **Issues**: Create a GitHub issue with detailed problem description
+4. **Feature Requests**: Submit enhancement requests through GitHub issues
 
 ## License
 
-This solution is provided as-is for internal use in Dataverse environments.
+This solution is provided as-is for use with Microsoft Dataverse environments. See individual component licenses for specific terms.
+
+---
+
+*DVDataDictionary helps organizations maintain comprehensive, up-to-date documentation of their Dataverse implementations, reducing technical debt and improving development efficiency.*

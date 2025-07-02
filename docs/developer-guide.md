@@ -1,6 +1,19 @@
-# DataIngestor Developer Guide
+# DVDataDictionary Developer Guide
 
-This guide provides an overview of the main models in the DataIngestor system, their properties, relationships, and how they are used in the ingestion process.
+This guide provides an overview of the main models and architecture in the DVDataDictionary solution, their properties, relationships, and how they are used in the data dictionary generation process.
+
+---
+
+## Solution Overview
+
+### DVDataDictionary Components
+
+The DVDataDictionary solution consists of two main components:
+
+1. **DataDictionary**: Core library with models and plugin functionality for in-environment execution
+2. **DataDictionaryProcessor**: Console application for standalone processing and automated workflows
+
+Both components share common data models and processing logic for generating comprehensive data dictionaries from Microsoft Dataverse solutions.
 
 ---
 
@@ -135,48 +148,54 @@ The following diagram and description illustrate how the main models relate to e
 
 ## Usage Patterns
 
-- **InjestorV2** orchestrates the ingestion process:
-  - Loads solutions and their components.
-  - Populates entities, attributes, and web resources.
-  - Correlates JavaScript field modifications with attribute metadata.
-  - Saves all metadata and relationships to Dataverse.
+- **DataDictionaryProcessor Console Application** orchestrates the processing workflow:
+  - Loads solutions and their components
+  - Populates entities, attributes, and web resources
+  - Correlates JavaScript field modifications with attribute metadata
+  - Generates structured output in JSON and CSV formats
 
-**Example:**
-- `DataDictionarySolution` contains all metadata for a solution.
-- Each `DataDictionaryEntity` contains its attributes.
-- Each `DataDictionaryWebResource` contains parsed JS modifications and dependencies.
-- Each `DataDictionaryAttributeMetadata` tracks which JS modifications and web resources affect it.
+- **DataDictionary Plugin** provides in-environment execution:
+  - Triggered by Dataverse workflow or custom action
+  - Processes specified solutions within the Dataverse environment
+  - Saves results as attachments (Notes) in Dataverse
+
+**Example Workflow:**
+- `DataDictionarySolution` contains all metadata for a solution
+- Each `DataDictionaryEntity` contains its attributes
+- Each `DataDictionaryWebResource` contains parsed JS modifications and dependencies
+- Each `DataDictionaryAttributeMetadata` tracks which JS modifications and web resources affect it
 
 ---
 
 ## See Also
 
-- [model-relationships.md](model-relationships.md) for a visual diagram.
-- [dataingestor-architecture-review.md](dataingestor-architecture-review.md) for comprehensive architecture review and recommendations.
-- [dataingestor-refactoring-examples.md](dataingestor-refactoring-examples.md) for specific code examples and refactoring guidance.
-- [dataingestor-review-summary.md](dataingestor-review-summary.md) for executive summary and implementation roadmap.
+- [model-relationships.md](model-relationships.md) for visual relationship diagrams
+- [Architecture Documentation](./dataingestor-architecture-review.md) for comprehensive design analysis
+- [DataDictionaryProcessor Guide](../DataDictionaryProcessor/README.md) for console application usage
+- [DataDictionary Plugin Guide](../DataDictionary/README.md) for plugin deployment
 
-## Architecture Review (December 2024)
+## Current Architecture (December 2024)
 
-A comprehensive architecture review has been conducted by a senior Dynamics 365 architect. Key findings:
+The DVDataDictionary solution has evolved to provide robust data dictionary generation capabilities:
 
 ### Strengths
 - Excellent domain knowledge and understanding of Dataverse concepts
 - Comprehensive metadata extraction capabilities
 - Sophisticated JavaScript analysis for field modifications
 - Well-designed data models
+- Multiple deployment options (plugin and console application)
 
-### Areas for Improvement
-- **Monolithic Architecture**: The main InjestorV2 class (1,539 lines) should be broken into focused services
-- **Naming Inconsistencies**: Fix "Injestor" misspelling and standardize namespaces
-- **Logging**: Replace Console.WriteLine with structured logging
-- **Error Handling**: Implement comprehensive error handling and result patterns
-- **Testing**: Expand beyond basic JavaScript parsing tests
+### Current Implementation
+- **DataDictionaryProcessor**: Mature console application with comprehensive processing pipeline
+- **DataDictionary Plugin**: Stable plugin implementation for in-environment execution
+- **Shared Models**: Common data structures used across both components
+- **JavaScript Analysis**: Advanced parsing capabilities for form script behaviors
 
-### Recommended Next Steps
-1. **Phase 1 (Weeks 1-2)**: Implement structured logging, clean up project files, fix naming
-2. **Phase 2 (Weeks 3-4)**: Extract services, implement dependency injection, add async patterns
-3. **Phase 3 (Weeks 5-6)**: Add comprehensive testing, optimize performance, improve configuration
-4. **Phase 4 (Weeks 7-8)**: Add monitoring, enhance security, update documentation
+### Recommended Enhancements
+1. **Enhanced Testing**: Expand unit and integration test coverage
+2. **Performance Optimization**: Implement async patterns and batch processing improvements
+3. **Configuration Management**: Enhance settings and environment-specific configuration
+4. **Monitoring and Logging**: Add structured logging and performance metrics
+5. **Documentation**: Continue expanding knowledge transfer documentation
 
 See the detailed architecture review documents for complete analysis and implementation guidance.

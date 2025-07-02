@@ -288,6 +288,6 @@ For issues, questions, or contributions:
 
 ## Related Documentation
 
-- [Developer Guide](./developer_guide.md) - Comprehensive technical documentation for developers
+- [Developer Guide](./developer_guide.md) - Comprehensive technical documentation and knowledge transfer guide
 - [Project README](../README.md) - Overview of the entire DVDataDictionary solution
-- [DataIngestor Architecture Review](../docs/dataingestor-architecture-review.md) - Architectural analysis and recommendations
+- [Architecture Documentation](../docs/) - Detailed architectural analysis and implementation recommendations

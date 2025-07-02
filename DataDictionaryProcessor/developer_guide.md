@@ -5,19 +5,24 @@
 
 ## Overview
 
-This repository contains three related projects—**DataDictionary**, **DataDictionaryProcessor**, and **DataIngestor**—which are all works in progress toward building a comprehensive data dictionary solution for Microsoft Dataverse (Dynamics 365). The current implementation uses a console application (**DataDictionaryProcessor**) to automate data dictionary generation. However, the long-term goal is to enable this functionality to be imported as a solution and executed directly from within a Power App, providing a more integrated and user-friendly experience.
+The **DataDictionaryProcessor** is a console application that automates the generation of comprehensive data dictionaries for Microsoft Dataverse (Dynamics 365) solutions. This guide serves as a complete knowledge transfer document for development teams taking over maintenance and enhancement of the solution.
 
-The **DataDictionaryProcessor** is a console application within the DVDataDictionary solution that generates comprehensive data dictionaries for Microsoft Dataverse (Dynamics 365) solutions. It extracts metadata about entities, attributes, and web resources, analyzes JavaScript code for field modifications, and correlates this information to create a unified data dictionary.
+### Project Context
 
-### Context within DVDataDictionary Solution
+DVDataDictionary consists of two main components:
 
-The DataDictionaryProcessor serves as one of the key components in the DVDataDictionary ecosystem:
+- **DataDictionary**: Core library with models and plugin functionality for in-environment execution
+- **DataDictionaryProcessor**: Console application for standalone processing and automated workflows
 
-- **DataDictionary**: Core library with models and plugin functionality
-- **DataDictionaryProcessor**: Console application for automated data dictionary generation
-- **DataIngestor**: Alternative approach for data ingestion (legacy)
+The DataDictionaryProcessor extracts metadata about entities, attributes, and web resources, analyzes JavaScript code for field modifications, and correlates this information to create unified data dictionaries. It's designed for integration into CI/CD pipelines, scheduled documentation updates, or on-demand analysis.
 
-The processor is designed to be run as a standalone console application or integrated into automated workflows for documentation generation.
+### Business Value
+
+This solution addresses critical challenges in Dataverse implementations:
+- **Automated Documentation**: Eliminates manual effort in maintaining solution documentation
+- **JavaScript Analysis**: Discovers hidden business logic in form scripts and field behaviors
+- **Change Impact Analysis**: Helps understand how modifications affect existing customizations
+- **Knowledge Preservation**: Captures institutional knowledge about solution structure and behavior
 
 ## Architecture Overview
 
@@ -1154,31 +1159,34 @@ When making breaking changes:
 
 ### Legacy Support
 
-#### DataIngestor Compatibility
-The DataDictionaryProcessor was designed to eventually replace DataIngestor:
-- **Model Compatibility**: Ensure data models can be converted
-- **Feature Parity**: Maintain important DataIngestor functionality
-- **Migration Tools**: Provide utilities to migrate from DataIngestor
+#### Backward Compatibility
+The DataDictionaryProcessor maintains compatibility with existing data formats:
+- **Model Versioning**: Data models support backward compatibility where possible
+- **Configuration Evolution**: Settings files can be upgraded automatically
+- **Output Format Stability**: Generated data dictionary formats remain consistent
 
-#### Configuration Migration
+#### Migration Considerations
+When upgrading the application:
 ```csharp
 public class ConfigurationMigrator
 {
-    public void MigrateFromLegacyConfig(string legacyConfigPath)
+    public void UpgradeConfiguration(string configPath)
     {
-        // Read legacy configuration format
-        var legacyConfig = ReadLegacyConfig(legacyConfigPath);
+        // Read existing configuration format
+        var existingConfig = ReadExistingConfig(configPath);
         
-        // Convert to new format
-        var newConfig = new
+        // Apply any necessary transformations
+        var updatedConfig = new
         {
-            CRMURL = legacyConfig.Environment.Url,
-            CLIENTID = legacyConfig.Authentication.ClientId,
-            // ... other mappings
+            CRMURL = existingConfig.Environment?.Url ?? existingConfig.CRMURL,
+            CLIENTID = existingConfig.Authentication?.ClientId ?? existingConfig.CLIENTID,
+            // Handle new configuration options with defaults
+            BatchSize = existingConfig.BatchSize ?? 100,
+            MaxRetries = existingConfig.MaxRetries ?? 3
         };
         
-        // Save new configuration
-        SaveNewConfig(newConfig, "appsettings.json");
+        // Save updated configuration
+        SaveNewConfig(updatedConfig, "appsettings.json");
     }
 }
 ```
