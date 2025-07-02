@@ -19,13 +19,14 @@ Managing Dataverse customizations becomes increasingly complex as organizations 
 
 ## Project Structure
 
-The DVDataDictionary solution consists of two main components:
+The DVDataDictionary solution consists of two main projects:
 
 ### DataDictionary
 Core library containing:
 - **Plugin Architecture**: Dataverse plugin for in-environment execution
 - **Data Models**: Comprehensive models for solutions, entities, attributes, and web resources
 - **Metadata Processing**: Core logic for extracting and organizing Dataverse metadata
+- *This project will be a duplicate of **DataDictionaryProcessor** upon testing and verification to run under Dataverse.*
 
 ### DataDictionaryProcessor  
 Console application providing:
