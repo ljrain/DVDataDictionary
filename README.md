@@ -12,7 +12,7 @@ Managing Dataverse customizations becomes increasingly complex as organizations 
 - **JavaScript Analysis**: Discovers hidden business logic by analyzing form scripts and field modifications
 - **Comprehensive Coverage**: Documents entities, attributes, relationships, and customizations in one unified view
 - **Metadata Correlation**: Links JavaScript behaviors with field metadata for complete understanding
-- **Multiple Output Formats**: Generates JSON and CSV outputs for different consumption needs
+- **Centralized Storage**: Saves all documentation data directly to Dataverse for unified access and reporting
 - **Change Tracking**: Helps identify what customizations exist and how they interact
 
 ## Project Structure
@@ -30,7 +30,7 @@ Console application providing:
 - **Standalone Processing**: Command-line tool for automated data dictionary generation
 - **JavaScript Analysis**: Advanced parsing of JavaScript code for field modifications
 - **Batch Processing**: Efficient handling of large Dataverse solutions
-- **Flexible Output**: Configurable output formats and destinations
+- **Centralized Output**: Automatically saves results to Dataverse for access within a Model Driven App
 
 ## Key Features
 
@@ -49,7 +49,7 @@ Console application providing:
 ### Documentation Generation
 - **Unified Data Dictionaries**: Single source of truth for solution documentation
 - **Cross-Reference Correlation**: Links metadata with behavioral modifications
-- **Multiple Formats**: JSON for programmatic access, CSV for business users
+- **Centralized Storage**: All documentation is saved to Dataverse for access and reporting within a Model Driven App
 - **Comprehensive Coverage**: Documents both standard configuration and custom behaviors
 
 ## Getting Started
@@ -61,30 +61,28 @@ Console application providing:
 
 ### Quick Start
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/ljrain/DVDataDictionary.git
-   cd DVDataDictionary
-   ```
+1. **Clone the Repository**  
+   `git clone https://github.com/ljrain/DVDataDictionary.git`  
+   `cd DVDataDictionary`
 
 2. **Choose Your Approach**
-   
-   **Option A: Console Application (Recommended)**
-   - Navigate to [DataDictionaryProcessor/README.md](./DataDictionaryProcessor/README.md)
+
+   **Option A: Console Application (Recommended)**  
+   - Navigate to [DataDictionaryProcessor/README.md](./DataDictionaryProcessor/README.md)  
    - Follow setup instructions for standalone processing
-   
+
    **Option B: Dataverse Plugin**  
-   - Navigate to [DataDictionary/README.md](./DataDictionary/README.md)
+   - Navigate to [DataDictionary/README.md](./DataDictionary/README.md)  
    - Follow plugin registration and deployment instructions
 
-3. **Configure Authentication**
-   - Set up Azure AD application with Dataverse permissions
+3. **Configure Authentication**  
+   - Set up Azure AD application with Dataverse permissions  
    - Configure connection settings (see component-specific documentation)
 
-4. **Run Your First Analysis**
-   - Specify target Dataverse solutions
-   - Execute data dictionary generation
-   - Review generated documentation
+4. **Run Your First Analysis**  
+   - Specify target Dataverse solutions  
+   - Execute data dictionary generation  
+   - Review generated documentation within your Model Driven App
 
 ## Documentation
 
@@ -95,35 +93,7 @@ Console application providing:
 
 ## Sample Output
 
-The solution generates comprehensive data dictionaries including:
-
-```json
-{
-  "solution": "SampleSolution",
-  "entities": [
-    {
-      "logicalName": "account",
-      "displayName": "Account",
-      "attributes": [
-        {
-          "logicalName": "name",
-          "displayName": "Account Name",
-          "dataType": "String",
-          "isRequired": true,
-          "maxLength": 160,
-          "javascriptModifications": [
-            {
-              "webResource": "account_main.js",
-              "modificationType": "Visibility",
-              "condition": "formContext.getAttribute('customertype').getValue() === 1"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
+The solution generates comprehensive data dictionaries stored in Dataverse, accessible and reportable within your Model Driven App.
 
 ## Use Cases
 
@@ -147,7 +117,7 @@ Document system configurations and customizations for regulatory compliance.
 - **.NET Framework 4.6.2**: Core runtime environment
 - **Microsoft Dataverse SDK**: Native integration with Dataverse APIs
 - **JavaScript Parsing**: Custom analysis engine for form script processing
-- **JSON/CSV Output**: Multiple format support for different use cases
+- **Dataverse Storage**: All documentation is saved centrally for unified access
 
 ## Contributing
 
