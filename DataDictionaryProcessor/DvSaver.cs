@@ -41,25 +41,25 @@ namespace DataDictionaryProcessor
                 foreach (var entity in _ddModel.Entities.Values)
                 {
                     // Logic to save entity to Dataverse
-                    Console.WriteLine($"Saving entity: {entity.EntitySetName}");
+                    DictionaryOrchestrator.LogEvent($"Saving entity: {entity.EntitySetName}");
 
                     foreach (var attribute in entity.Attributes)
                     {
                         // Logic to save attribute to Dataverse
-                        Console.WriteLine($"  Saving attribute: {attribute.AttributeName}");
+                        //DictionaryOrchestrator.LogEvent($"  Saving attribute: {attribute.AttributeName}");
 
                         foreach (var modification in attribute.Modifications)
                         {
                             // Logic to save modification to Dataverse
-                            Console.WriteLine($"    Saving modification: {modification.FieldName} with value {modification.FieldName}");
+                            //DictionaryOrchestrator.LogEvent($"    Saving modification: {modification.FieldName} with value {modification.FieldName}");
                         }
                     }
                 }
-                Console.WriteLine("Data dictionary saved successfully.");
+                DictionaryOrchestrator.LogEvent("Data dictionary saved successfully.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error saving data dictionary: {ex.Message}");
+                DictionaryOrchestrator.LogEvent($"Error saving data dictionary: {ex.Message}");
             }
 
         }
@@ -75,7 +75,7 @@ namespace DataDictionaryProcessor
 
             foreach (var resource in _ddModel.WebResources)
             {
-                Console.WriteLine($"Saving web resource: {resource.Value}");
+                DictionaryOrchestrator.LogEvent($"Saving web resource: {resource.Value}");
                 SaveJavascriptToDataverse();
 
             }
@@ -94,13 +94,13 @@ namespace DataDictionaryProcessor
                     var altKey = $"{attr.Metadata.Table}.{attr.Metadata.ColumnSchema}";
                     if (string.IsNullOrWhiteSpace(altKey))
                     {
-                        Console.WriteLine("Skipping record with null/empty alternate key.");
+                        //DictionaryOrchestrator.LogEvent("Skipping record with null/empty alternate key.");
                         continue;
                     }
                     // Check for duplicate alternate key in the current batch
                     if (!seenAltKeys.Add(altKey))
                     {
-                        Console.WriteLine($"Duplicate alternate key detected in batch: '{altKey}'. Skipping this record.");
+                        //DictionaryOrchestrator.LogEvent($"Duplicate alternate key detected in batch: '{altKey}'. Skipping this record.");
                         continue;
                     }
 
@@ -241,7 +241,7 @@ namespace DataDictionaryProcessor
             {
                 if (resp.Fault != null)
                 {
-                    Console.WriteLine($"Error in batch operation: {resp.Fault.Message}");
+                    DictionaryOrchestrator.LogEvent($"Error in batch operation: {resp.Fault.Message}");
                 }
             }
         }
@@ -335,14 +335,14 @@ namespace DataDictionaryProcessor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error saving dependency for Web Resource '{webResource.DisplayName}': {ex.Message}");
+                    DictionaryOrchestrator.LogEvent($"Error saving dependency for Web Resource '{webResource.DisplayName}': {ex.Message}");
                 }
             }
         }
 
         private void SaveJavaScriptFieldModifications()
         {
-            Console.WriteLine("Saving JavaScript field modifications to Dataverse...");
+            DictionaryOrchestrator.LogEvent("Saving JavaScript field modifications to Dataverse...");
 
             // Field modifications are stored as a child under the attribute metadata
             foreach (var entityPair in _ddModel.Entities)
@@ -435,13 +435,13 @@ namespace DataDictionaryProcessor
                             // Update existing record
                             jsModEntity.Id = result.Entities[0].Id;
                             _serviceClient.Update(jsModEntity);
-                            Console.WriteLine($"Updated JavaScript field modification: {altKey}");
+                            DictionaryOrchestrator.LogEvent($"Updated JavaScript field modification: {altKey}");
                         }
                         else
                         {
                             // Create new record
                             _serviceClient.Create(jsModEntity);
-                            Console.WriteLine($"Created JavaScript field modification: {altKey}");
+                            DictionaryOrchestrator.LogEvent($"Created JavaScript field modification: {altKey}");
                         }
                     }
                 }
@@ -484,13 +484,13 @@ namespace DataDictionaryProcessor
                         entity.Id = result.Entities[0].Id;
                         _serviceClient.Update(entity);
                         webResourceRecordId = entity.Id;
-                        Console.WriteLine($"Updated Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
+                        DictionaryOrchestrator.LogEvent($"Updated Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
                     }
                     else
                     {
                         // Create new record
                         webResourceRecordId = _serviceClient.Create(entity);
-                        Console.WriteLine($"Created Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
+                        DictionaryOrchestrator.LogEvent($"Created Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
                     }
                     _ddModel.WebResources[webResource.Value.DisplayName].WebResourceId = webResourceRecordId;
                     // Save dependencies for this web resource
@@ -498,7 +498,7 @@ namespace DataDictionaryProcessor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error upserting Web Resource '{webResource.Value.DisplayName}': {ex.Message}");
+                    DictionaryOrchestrator.LogEvent($"Error upserting Web Resource '{webResource.Value.DisplayName}': {ex.Message}");
                 }
             }
 

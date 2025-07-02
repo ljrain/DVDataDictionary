@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using DataDictionaryProcessor;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
@@ -45,7 +46,7 @@ namespace DataDictionary.Models
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error parsing dependencies: {ex.Message}");
+                DictionaryOrchestrator.LogEvent($"Error parsing dependencies: {ex.Message}");
             }
         }
     }

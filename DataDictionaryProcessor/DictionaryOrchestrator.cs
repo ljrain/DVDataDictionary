@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xrm.Tooling.Connector;
 using System;
+using System.Web.UI.WebControls;
 
 namespace DataDictionaryProcessor
 {
@@ -22,17 +23,25 @@ namespace DataDictionaryProcessor
         #endregion
 
 
+        public static void LogEvent(string message,ConsoleColor color = ConsoleColor.White)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ResetColor();
+        }
+
+
         public DictionaryOrchestrator(string connectionString)
         {
 
             _serviceClient = new CrmServiceClient(connectionString);
             if (_serviceClient.IsReady)
             {
-                Console.WriteLine("Connected to Dynamics CRM!");
+                DictionaryOrchestrator.LogEvent("Connected to Dynamics CRM!");
             }
             else
             {
-                Console.WriteLine("Failed to connect to Dynamics CRM: " + _serviceClient.LastCrmError);
+                DictionaryOrchestrator.LogEvent("Failed to connect to Dynamics CRM: " + _serviceClient.LastCrmError);
                 throw new Exception("CRM connection failed");
             }
         }
@@ -40,15 +49,13 @@ namespace DataDictionaryProcessor
 
         public void BuildDataDictionary(string[] solutionNames)
         {
-            Console.WriteLine("Building Data Dictionary...");
+            DictionaryOrchestrator.LogEvent("Building Data Dictionary...");
 
             DateTime startTime = DateTime.Now;
             DvCollector collector = new DvCollector(_serviceClient, solutionNames);
             collector.CollectData();
             var elapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Data collection took {elapsedTime} seconds.");
-            Console.ResetColor();
+            DictionaryOrchestrator.LogEvent($"Data collection took {elapsedTime} seconds.",ConsoleColor.Red );
 
             startTime = DateTime.Now;
             DvProcessor processor = new DvProcessor();
@@ -59,19 +66,16 @@ namespace DataDictionaryProcessor
             processor.PrintDataDictionary();
 
             var totalTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Total time taken for processing: {totalTime} seconds.");
-            Console.ResetColor();
+            DictionaryOrchestrator.LogEvent($"Total time taken for processing: {totalTime} seconds.", ConsoleColor.Red);
 
             startTime = DateTime.Now;
             // Save to Dataverse
             DvSaver saver = new DvSaver(_serviceClient, processor.DdModel);
             saver.SaveToDataverse();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Data saved to Dataverse in {DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2")} seconds.");
-            Console.ResetColor();
+            DateTime saveStartTime = DateTime.Now;
+            DictionaryOrchestrator.LogEvent($"Data saved to Dataverse in {DateTime.Now.Subtract(saveStartTime).TotalSeconds.ToString("F2")} seconds.", ConsoleColor.Red);
 
-            Console.WriteLine("Data Dictionary built successfully!");
+            DictionaryOrchestrator.LogEvent("Data Dictionary built successfully!",ConsoleColor.Green);
         }
     }
 }

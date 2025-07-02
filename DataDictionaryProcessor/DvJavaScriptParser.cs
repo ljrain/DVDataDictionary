@@ -143,7 +143,7 @@ namespace DataDictionaryProcessor
 
                             modifications.Add(modification);
 
-                            Console.WriteLine($"Found {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
+                            DictionaryOrchestrator.LogEvent($"Found {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
                         }
                     }
                 }
@@ -174,7 +174,7 @@ namespace DataDictionaryProcessor
 
                                 modifications.Add(modification);
 
-                                Console.WriteLine($"Found advanced {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
+                                DictionaryOrchestrator.LogEvent($"Found advanced {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
                             }
                         }
                     }

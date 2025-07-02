@@ -42,7 +42,7 @@ namespace DataDictionaryProcessor
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred while collecting data: " + ex.Message);
+                DictionaryOrchestrator.LogEvent("An error occurred while collecting data: " + ex.Message);
             }
         }
     }

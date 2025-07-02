@@ -109,7 +109,7 @@ namespace DataDictionaryProcessor
 
             foreach (var solutionName in _ddSolutions.Keys)
             {
-                Console.WriteLine($"Processing Solution: {solutionName}");
+                DictionaryOrchestrator.LogEvent($"Processing Solution: {solutionName}");
                 if (solutionName == "Default")
                     return;
 
@@ -117,7 +117,7 @@ namespace DataDictionaryProcessor
 
                 foreach (var entity in _ddSolutions[solutionName].Entities)
                 {
-                    Console.WriteLine($"Processing Entity: {entity.LogicalName}");
+                    DictionaryOrchestrator.LogEvent($"Processing Entity: {entity.LogicalName}");
                     if (!_ddModel.Entities.ContainsKey(entity.LogicalName))
                     {
                         _ddModel.Entities[entity.LogicalName] = new DataDictionaryEntity
@@ -147,7 +147,7 @@ namespace DataDictionaryProcessor
                         )
                         .ToList();
 
-                    Console.WriteLine($"Found {matchingAttributes.Count} matching attributes for entity {entity.LogicalName}");
+                    DictionaryOrchestrator.LogEvent($"Found {matchingAttributes.Count} matching attributes for entity {entity.LogicalName}");
 
                     foreach (DataDictionaryAttributeMetadata attrMetadata in matchingAttributes)
                     {
@@ -158,10 +158,10 @@ namespace DataDictionaryProcessor
 
                         _ddModel.Entities[entity.LogicalName].AddAttribute(ddAttr);
                     }
-                    Console.WriteLine($"Processing Attributes for Entity: {entity.LogicalName}");
+                    DictionaryOrchestrator.LogEvent($"Processing Attributes for Entity: {entity.LogicalName}");
                 }
             }
-            Console.WriteLine("Data Dictionary Processing Complete.");
+            DictionaryOrchestrator.LogEvent("Data Dictionary Processing Complete.");
         }
 
         /// <summary>
@@ -169,27 +169,27 @@ namespace DataDictionaryProcessor
         /// </summary>
         public void PrintDataDictionary()
         {
-            Console.WriteLine("Data Dictionary Contents:");
-            foreach (var solution in _ddModel.Solutions)
-            {
-                Console.WriteLine($"Solution: {solution}");
-                if (_ddModel.Entities.Count == 0)
-                {
-                    Console.WriteLine("No entities found in this solution.");
-                    continue;
-                }
-                //Console.WriteLine($"Entities Count: {_ddModel.Entities.Count}");
-                //Console.WriteLine($"Attributes Count: {_ddModel.Entities.Values.Sum(e => e.Attributes.Count())}");
-            }
+            DictionaryOrchestrator.LogEvent("Data Dictionary Contents:");
+            //foreach (var solution in _ddModel.Solutions)
+            //{
+            //    DictionaryOrchestrator.LogEvent($"Solution: {solution}");
+            //    if (_ddModel.Entities.Count == 0)
+            //    {
+            //        DictionaryOrchestrator.LogEvent("No entities found in this solution.");
+            //        continue;
+            //    }
+            //    //DictionaryOrchestrator.LogEvent($"Entities Count: {_ddModel.Entities.Count}");
+            //    //DictionaryOrchestrator.LogEvent($"Attributes Count: {_ddModel.Entities.Values.Sum(e => e.Attributes.Count())}");
+            //}
 
             foreach (var entity in _ddModel.Entities.Values)
             {
-                Console.WriteLine($"Entity Full Name: {entity.EntitySetName}.{entity.LogicalName}");
-                //Console.WriteLine($"Entity: {entity.LogicalName}, Type: {entity.ObjectTypeCode}");
-                //Console.WriteLine($"Attributes Count: {entity.Attributes.Count()}");
+                DictionaryOrchestrator.LogEvent($"Entity Full Name: {entity.EntitySetName}.{entity.LogicalName}");
+                //DictionaryOrchestrator.LogEvent($"Entity: {entity.LogicalName}, Type: {entity.ObjectTypeCode}");
+                //DictionaryOrchestrator.LogEvent($"Attributes Count: {entity.Attributes.Count()}");
                 foreach (var attribute in entity.Attributes)
                 {
-                    //Console.WriteLine($"  Attribute Full Name: {entity.EntitySetName}.{attribute.AttributeName}");
+                    //DictionaryOrchestrator.LogEvent($"  Attribute Full Name: {entity.EntitySetName}.{attribute.AttributeName}");
                     // check if any field name is matching a modification from the javaScript parser
                     // Check if any modification matches the attribute name
                     //  Attribute: Fax, Type: String
@@ -198,7 +198,7 @@ namespace DataDictionaryProcessor
                             string.Equals(mod.FieldName, attribute.AttributeName, StringComparison.OrdinalIgnoreCase));
                     if (matchingModification != null)
                     {
-                        Console.WriteLine($"    [JS Modified] Field: {matchingModification.FieldName}, Modification: {matchingModification.ModificationType}, WebResource: {matchingModification.WebResourceName}");
+                        DictionaryOrchestrator.LogEvent($"    [JS Modified] Field: {matchingModification.FieldName}, Modification: {matchingModification.ModificationType}, WebResource: {matchingModification.WebResourceName}");
                         attribute.Modifications.Add(matchingModification);
                         if (matchingModification.ModificationType == JavaScriptModificationType.Visibility)
                         {
@@ -233,7 +233,7 @@ namespace DataDictionaryProcessor
 
                     }
 
-                    Console.WriteLine($"  Attribute: {attribute.AttributeName}, Type: {attribute.Metadata.DataType}");
+                    //DictionaryOrchestrator.LogEvent($"  Attribute: {attribute.AttributeName}, Type: {attribute.Metadata.DataType}");
                 }
             }
 

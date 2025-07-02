@@ -439,7 +439,7 @@ Contains detailed pseudocode documentation of the original DataIngestor workflow
        // Excel export logic using EPPlus or similar
    }
 2. **Enhance Console Output**:// Modify PrintDataDictionary() in DvProcessor.cs
-   Console.WriteLine($"Custom Report: {customCalculation}");
+   DictionaryOrchestrator.LogEvent($"Custom Report: {customCalculation}");
 3. **Add File Export**:// Add to DvProcessor.cs
    public void SaveToFile(string filePath)
    {
@@ -972,13 +972,13 @@ public void ExampleMethod()
     catch (SpecificException ex)
     {
         // Handle specific cases
-        Console.WriteLine($"Specific error: {ex.Message}");
+        DictionaryOrchestrator.LogEvent($"Specific error: {ex.Message}");
         throw; // Re-throw if cannot recover
     }
     catch (Exception ex)
     {
         // Handle general cases
-        Console.WriteLine($"Unexpected error: {ex.Message}");
+        DictionaryOrchestrator.LogEvent($"Unexpected error: {ex.Message}");
         throw new ApplicationException("Operation failed", ex);
     }
 }
@@ -1065,7 +1065,7 @@ public class DataverseIntegrationTests
 
 #### Common Anti-Patterns to Avoid
 1. **Hardcoded Credentials**: Never embed credentials in code
-2. **Console.WriteLine for Errors**: Use proper exception handling
+2. **DictionaryOrchestrator.LogEvent for Errors**: Use proper exception handling
 3. **Large Methods**: Break down methods over 50 lines
 4. **Magic Numbers**: Use named constants for numeric values
 5. **Catching Exception**: Catch specific exception types when possible

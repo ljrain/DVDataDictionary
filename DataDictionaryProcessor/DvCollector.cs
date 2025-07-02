@@ -79,7 +79,7 @@ namespace DataDictionaryProcessor
              */
             // below will be a parameter or setting that accepts an array of solution unique names
             GetSolutions(_solutionNames);
-            Console.WriteLine("Solutions collected: " + _ddSolutions.Count);
+            DictionaryOrchestrator.LogEvent("Solutions collected: " + _ddSolutions.Count);
 
             // Iterate through the dictionary and pass each DataDictionarySolution object to GetComponentsInSolution
             foreach (var ddSolution in _ddSolutions.Values)
@@ -88,7 +88,7 @@ namespace DataDictionaryProcessor
                 List<Guid> attributeIds = GetAttributeComponentObjectIds(ddSolution);
                 GetAttributesBySolutionObjectIds(attributeIds.ToArray());
 
-                Console.WriteLine($"Solution: {ddSolution.UniqueName}, Components Count: {ddSolution.Components.Count}");
+                DictionaryOrchestrator.LogEvent($"Solution: {ddSolution.UniqueName}, Components Count: {ddSolution.Components.Count}");
                 //TODO: Investigating below
                 //QuerySolutionComponentAttributes(new Guid(ddSolution.SolutionId));
 
@@ -96,7 +96,7 @@ namespace DataDictionaryProcessor
             _solutionObjectIds = GetWebResourceObjectIds();
 
 
-            Console.WriteLine("Web Resource Object IDs collected: " + _solutionObjectIds.Length);
+            DictionaryOrchestrator.LogEvent("Web Resource Object IDs collected: " + _solutionObjectIds.Length);
             List<Entity> webResources = GetWebResourcesByObjectIds(_solutionObjectIds);
             foreach (var webResource in webResources)
             {
@@ -110,7 +110,7 @@ namespace DataDictionaryProcessor
                 });
             }
 
-            Console.WriteLine("Web Resources retrieved: " + webResources.Count);
+            DictionaryOrchestrator.LogEvent("Web Resources retrieved: " + webResources.Count);
 
             _dvJavaScriptParser = new DvJavaScriptParser(_serviceClient, _ddSolutions, _allowedLogicalNames, _allowedtableAttributes);
             // parse javascript that was found in web resources
@@ -122,12 +122,12 @@ namespace DataDictionaryProcessor
             }
 
             ProcessEntities();
-            Console.WriteLine("Entities processed: " + _ddSolutions.Values.Sum(s => s.Entities.Count));
-            Console.WriteLine("Allowed Logical Names Count: : " + _allowedLogicalNames.Count);
+            DictionaryOrchestrator.LogEvent("Entities processed: " + _ddSolutions.Values.Sum(s => s.Entities.Count));
+            DictionaryOrchestrator.LogEvent("Allowed Logical Names Count: : " + _allowedLogicalNames.Count);
             LogSchema();
-            Console.WriteLine("Schema logged for Default solution with " + _ddSolutions["Default"].AttributeMetadata.Count + " attributes.");
+            DictionaryOrchestrator.LogEvent("Schema logged for Default solution with " + _ddSolutions["Default"].AttributeMetadata.Count + " attributes.");
 
-            Console.WriteLine("Data collection completed.");
+            DictionaryOrchestrator.LogEvent("Data collection completed.");
         }
 
         /// <summary>
@@ -201,7 +201,7 @@ namespace DataDictionaryProcessor
             {
                 if (_allowedtableAttributes.ContainsKey(atr["attr.tablecolumnname"].ToString()))
                 {
-                    Console.WriteLine("Table found");
+                    DictionaryOrchestrator.LogEvent("Table found");
                 }
 
             }
@@ -238,7 +238,7 @@ namespace DataDictionaryProcessor
                 };
                 ddSolution.AddComponent(ddComponent);
 
-                Console.WriteLine($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Object Id: {ddComponent.ObjectId}");
+                //DictionaryOrchestrator.LogEvent($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Object Id: {ddComponent.ObjectId}");
             }
         }
 
@@ -317,7 +317,7 @@ namespace DataDictionaryProcessor
                     if (ddComponent.ComponentType == 1) // Assuming 1 is the type for Entity
                     {
                         // Retrieve entity details and attributes here
-                        Console.WriteLine($"Processing Entity Component: {ddComponent.ObjectId} in Solution: {ddSolution.UniqueName}");
+                        DictionaryOrchestrator.LogEvent($"Processing Entity Component: {ddComponent.ObjectId} in Solution: {ddSolution.UniqueName}");
 
                         var entityQuery = new QueryExpression("entity")
                         {
@@ -349,7 +349,7 @@ namespace DataDictionaryProcessor
                             ddSolution.AddEntity(ddEntity);
                             _allowedLogicalNames.Add(ddEntity.LogicalName); // Add logical name to allowed list
 
-                            Console.WriteLine($"Entity: {ddEntity.Name}, Object Type Code: {ddEntity.ObjectTypeCode}, Entity Set Name: {ddEntity.EntitySetName}");
+                            //DictionaryOrchestrator.LogEvent($"Entity: {ddEntity.Name}, Object Type Code: {ddEntity.ObjectTypeCode}, Entity Set Name: {ddEntity.EntitySetName}");
                         }
                     }
                 }
@@ -395,7 +395,7 @@ namespace DataDictionaryProcessor
 
             foreach (var attributeMetadata in response.EntityMetadata.SelectMany(e => e.Attributes))
             {
-                Console.WriteLine($"Logical Name: {attributeMetadata.LogicalName}, Display Name: {attributeMetadata.DisplayName?.UserLocalizedLabel?.Label}");
+                //DictionaryOrchestrator.LogEvent($"Logical Name: {attributeMetadata.LogicalName}, Display Name: {attributeMetadata.DisplayName?.UserLocalizedLabel?.Label}");
             }
         }
 
@@ -419,7 +419,7 @@ namespace DataDictionaryProcessor
 
             try
             {
-                Console.Write("Retrieving Metadata .");
+                Console.Write("Retrieving Attribute Metadata .");
                 request = new RetrieveAllEntitiesRequest()
                 {
                     EntityFilters = EntityFilters.Entity | EntityFilters.Attributes | EntityFilters.Relationships,

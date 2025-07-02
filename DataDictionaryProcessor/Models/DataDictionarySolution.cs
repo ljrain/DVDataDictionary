@@ -1,4 +1,5 @@
 ﻿//using DataIngestor.Models;
+using DataDictionaryProcessor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,7 +53,7 @@ namespace DataDictionary.Models
                 }
                 else
                 {
-                    Console.WriteLine($"Entity {ddEntity.EntityId} does not match AttributeOf {ddAttr.AttributeOf}");
+                    DictionaryOrchestrator.LogEvent($"Entity {ddEntity.EntityId} does not match AttributeOf {ddAttr.AttributeOf}");
                 }
             }
         }
