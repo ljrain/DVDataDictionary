@@ -103,7 +103,8 @@ namespace DataDictionaryProcessor
                 {
                     WebResourceId = webResource.GetAttributeValue<Guid>("webresourceid"),
                     Content = webResource.GetAttributeValue<string>("content"),
-                    DisplayName = webResource.GetAttributeValue<string>("displayname")
+                    DisplayName = webResource.GetAttributeValue<string>("name"),
+                    
                 });
             }
 
