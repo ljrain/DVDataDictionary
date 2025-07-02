@@ -7,6 +7,23 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataDictionaryProcessor", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataIngestor3", "..\DataIngestor\DataIngestor3.csproj", "{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		..\docs\attribute-metadata-relationship-plan.md = ..\docs\attribute-metadata-relationship-plan.md
+		..\docs\dataingestor-architecture-review.md = ..\docs\dataingestor-architecture-review.md
+		..\docs\dataingestor-refactoring-examples.md = ..\docs\dataingestor-refactoring-examples.md
+		..\docs\dataingestor-review-summary.md = ..\docs\dataingestor-review-summary.md
+		..\docs\dataverse-attribute-relationship-explained.md = ..\docs\dataverse-attribute-relationship-explained.md
+		..\docs\developer-guide.md = ..\docs\developer-guide.md
+		..\docs\issue-22-resolution-summary.md = ..\docs\issue-22-resolution-summary.md
+		..\docs\model-relationships.md = ..\docs\model-relationships.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

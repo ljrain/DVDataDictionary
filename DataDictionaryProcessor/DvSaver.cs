@@ -4,6 +4,7 @@ using Microsoft.Xrm.Sdk.Query;
 using Microsoft.Xrm.Tooling.Connector;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace DataDictionaryProcessor
 {
@@ -161,6 +162,8 @@ namespace DataDictionaryProcessor
                     if (!string.IsNullOrWhiteSpace(attr.Metadata.ModifyingWebResources))
                     {
                         newRec["ljr_modifyingwebresource"] = attr.Metadata.ModifyingWebResources;
+                        Guid webresourceId = _ddModel.WebResources[attr.Metadata.ModifyingWebResources].WebResourceId;
+                        newRec["ljr_webresource"] = new EntityReference("ljr_webresource", webresourceId);
                     }
                     // --- Check if record exists in Dataverse by alternate key ---
                     bool exists = false;
@@ -399,7 +402,7 @@ namespace DataDictionaryProcessor
                             attrMetaQuery.Criteria.AddCondition("ljr_columnlogical", ConditionOperator.Equal, attr.Metadata.ColumnLogical);
                             var attrMetaResult = _serviceClient.RetrieveMultiple(attrMetaQuery);
 
-                            var attrMetaId = attrMetaResult.Entities[0].Id;
+                            //var attrMetaId = attrMetaResult.Entities[0].Id;
                             var webName = attr.Metadata.ModifyingWebResources;
 
                             // Query to find ljr_webresource by display name (webName), returning only the ID
@@ -469,7 +472,7 @@ namespace DataDictionaryProcessor
                     var entity = new Entity("ljr_webresource");
                     entity["ljr_displayname"] = webResource.Value.DisplayName;
                     entity["ljr_name"] = webResource.Value.DisplayName;
-                    entity["ljr_javascript"] = webResource.Value.Content;
+                    entity["ljr_javascript"] = DecodeBase64String(webResource.Value.Content);
                     entity["ljr_dependencyxml"] = webResource.Value.DependencyXml;
                     if (!string.IsNullOrWhiteSpace(webResource.Value.ParsedDependenciesJson))
                         entity["ljr_parseddependencies"] = webResource.Value.ParsedDependenciesJson;
@@ -502,7 +505,22 @@ namespace DataDictionaryProcessor
             // Save JavaScript field modifications to Dataverse
             SaveJavaScriptFieldModifications();
         }
-
+        // Converts a base64 string to plain text (UTF-8)
+        private static string DecodeBase64String(string base64)
+        {
+            if (string.IsNullOrEmpty(base64))
+                return string.Empty;
+            try
+            {
+                var bytes = Convert.FromBase64String(base64);
+                return System.Text.Encoding.UTF8.GetString(bytes);
+            }
+            catch (FormatException)
+            {
+                // Not a valid base64 string, return as-is or handle as needed
+                return base64;
+            }
+        }
         #endregion
     }
 }
