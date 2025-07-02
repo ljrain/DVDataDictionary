@@ -4,6 +4,8 @@
 
 **DVDataDictionary** is a comprehensive solution for automatically generating detailed data dictionaries from Microsoft Dataverse (Dynamics 365) environments. The solution analyzes solution metadata, entity structures, field configurations, and JavaScript customizations to produce thorough documentation that helps organizations understand and maintain their Dataverse implementations.
 
+![image](https://github.com/user-attachments/assets/113ace51-913f-4139-9e49-ad202681c08a)
+
 ## Why DVDataDictionary?
 
 Managing Dataverse customizations becomes increasingly complex as organizations scale their implementations. DVDataDictionary addresses critical documentation challenges:
