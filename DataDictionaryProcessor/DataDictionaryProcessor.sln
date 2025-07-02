@@ -5,8 +5,6 @@ VisualStudioVersion = 17.14.36221.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataDictionaryProcessor", "DataDictionaryProcessor.csproj", "{9CE156CE-14FB-4C78-85F1-EF26B3C3E7D5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataIngestor3", "..\DataIngestor\DataIngestor3.csproj", "{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
 		..\docs\attribute-metadata-relationship-plan.md = ..\docs\attribute-metadata-relationship-plan.md
@@ -34,10 +32,6 @@ Global
 		{9CE156CE-14FB-4C78-85F1-EF26B3C3E7D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9CE156CE-14FB-4C78-85F1-EF26B3C3E7D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9CE156CE-14FB-4C78-85F1-EF26B3C3E7D5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A2072716-F14C-4F39-B9C0-76EC1AD9F0C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
