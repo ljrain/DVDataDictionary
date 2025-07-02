@@ -4,6 +4,8 @@
 
 **DVDataDictionary** is a comprehensive solution for automatically generating detailed data dictionaries from Microsoft Dataverse (Dynamics 365) environments. The solution analyzes solution metadata, entity structures, field configurations, and JavaScript customizations to produce thorough documentation that helps organizations understand and maintain their Dataverse implementations.
 
+![image](https://github.com/user-attachments/assets/113ace51-913f-4139-9e49-ad202681c08a)
+
 ## Why DVDataDictionary?
 
 Managing Dataverse customizations becomes increasingly complex as organizations scale their implementations. DVDataDictionary addresses critical documentation challenges:
@@ -17,13 +19,14 @@ Managing Dataverse customizations becomes increasingly complex as organizations 
 
 ## Project Structure
 
-The DVDataDictionary solution consists of two main components:
+The DVDataDictionary solution consists of two main projects:
 
 ### DataDictionary
 Core library containing:
 - **Plugin Architecture**: Dataverse plugin for in-environment execution
 - **Data Models**: Comprehensive models for solutions, entities, attributes, and web resources
 - **Metadata Processing**: Core logic for extracting and organizing Dataverse metadata
+- *This project will be a duplicate of **DataDictionaryProcessor** upon testing and verification to run under Dataverse.*
 
 ### DataDictionaryProcessor  
 Console application providing:
@@ -35,7 +38,7 @@ Console application providing:
 ## Key Features
 
 ### Metadata Extraction
-- Complete solution component analysis (entities, attributes, forms, views)
+- Thorough solution component analysis (entities, attributes and relationships)
 - Entity relationship mapping
 - Field-level metadata including data types, constraints, and configurations
 - Web resource inventory and analysis
@@ -67,13 +70,10 @@ Console application providing:
 
 2. **Choose Your Approach**
 
-   **Option A: Console Application (Recommended)**  
+   * Console Application (Recommended)**  
    - Navigate to [DataDictionaryProcessor/README.md](./DataDictionaryProcessor/README.md)  
    - Follow setup instructions for standalone processing
 
-   **Option B: Dataverse Plugin**  
-   - Navigate to [DataDictionary/README.md](./DataDictionary/README.md)  
-   - Follow plugin registration and deployment instructions
 
 3. **Configure Authentication**  
    - Set up Azure AD application with Dataverse permissions  
