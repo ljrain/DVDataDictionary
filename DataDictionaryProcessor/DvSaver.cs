@@ -492,7 +492,7 @@ namespace DataDictionaryProcessor
                         webResourceRecordId = _serviceClient.Create(entity);
                         Console.WriteLine($"Created Web Resource: {webResource.Value.DisplayName} ({webResource.Value.WebResourceId})");
                     }
-
+                    _ddModel.WebResources[webResource.Value.DisplayName].WebResourceId = webResourceRecordId;
                     // Save dependencies for this web resource
                     SaveWebResourceDependenciesToDataverse(webResource.Value, webResourceRecordId);
                 }
