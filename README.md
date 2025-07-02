@@ -70,13 +70,10 @@ Console application providing:
 
 2. **Choose Your Approach**
 
-   **Option A: Console Application (Recommended)**  
+   * Console Application (Recommended)**  
    - Navigate to [DataDictionaryProcessor/README.md](./DataDictionaryProcessor/README.md)  
    - Follow setup instructions for standalone processing
 
-   **Option B: Dataverse Plugin**  
-   - Navigate to [DataDictionary/README.md](./DataDictionary/README.md)  
-   - Follow plugin registration and deployment instructions
 
 3. **Configure Authentication**  
    - Set up Azure AD application with Dataverse permissions  
