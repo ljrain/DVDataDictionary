@@ -38,7 +38,7 @@ Console application providing:
 ## Key Features
 
 ### Metadata Extraction
-- Complete solution component analysis (entities, attributes, forms, views)
+- Thorough solution component analysis (entities, attributes and relationships)
 - Entity relationship mapping
 - Field-level metadata including data types, constraints, and configurations
 - Web resource inventory and analysis
