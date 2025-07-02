@@ -1,32 +1,32 @@
-# DataIngestor Proof of Concept Guide
+# DataDictionary Plugin User Guide
 
 ## Overview
 
-The DataIngestor (InjestorV2) is a C#/.NET Framework 4.6.2 proof-of-concept tool for Dynamics 365/Dataverse environments. It automates the extraction, analysis, and correlation of solution metadata—including entities, attributes, and JavaScript web resources—directly from Dataverse. The tool is designed for both technical users and developers, and is intended to be extended or customized by clients for their own data governance, documentation, or impact analysis needs.
+The DataDictionary Plugin is a C#/.NET Framework 4.6.2 Dataverse plugin that automates the extraction, analysis, and documentation of solution metadata directly within your Dataverse environment. It analyzes entities, attributes, and JavaScript web resources to generate comprehensive data dictionaries that help organizations understand and maintain their Dataverse implementations.
 
 ---
 
-## How DataIngestor Works
+## How the DataDictionary Plugin Works
 
 ### 1. Solution Processing
 
-- **Input**: One or more solution unique names (string array).
-- **Retrieval**: For each solution, the tool queries Dataverse for solution metadata, including all components (entities, attributes, web resources, etc.).
-- **Component Analysis**: Each component is classified and processed according to its type (e.g., entity, attribute, web resource).
+- **Input**: One or more solution unique names provided as a parameter
+- **Retrieval**: Queries Dataverse for complete solution metadata, including all components (entities, attributes, web resources, etc.)
+- **Component Analysis**: Classifies and processes each component according to its type
 
 ### 2. Entity and Attribute Metadata Extraction
 
-- **Entities**: For each entity in the solution, the tool retrieves logical names, schema names, display names, data types, and other metadata.
-- **Attributes**: For each attribute, it collects details such as logical name, type, min/max values, precision, and audit settings.
-- **Metadata Correlation**: The tool builds a comprehensive in-memory model of all entities and attributes, which is later saved to Dataverse.
+- **Entities**: Retrieves logical names, schema names, display names, and entity-level metadata
+- **Attributes**: Collects field details including data types, constraints, precision, and configuration settings
+- **Metadata Correlation**: Builds a comprehensive model of all entities and attributes for documentation
 
 ### 3. Web Resource and JavaScript Analysis
 
-- **Web Resource Discovery**: Identifies all JavaScript web resources in the solution.
-- **Content Decoding**: Decodes and parses the JavaScript content from base64.
-- **Dependency Parsing**: Analyzes the `DependencyXml` of each web resource to extract referenced entities and attributes.
-- **JavaScript Pattern Detection**: Uses regex to detect Dataverse API usage (e.g., `Xrm.Page`, `formContext`, `setVisible`, `setRequiredLevel`, etc.).
-- **Field Modification Extraction**: Identifies and records field-level modifications (visibility, required level, default values, etc.) made by JavaScript.
+- **Web Resource Discovery**: Identifies all JavaScript web resources in the specified solutions
+- **Content Analysis**: Decodes and parses JavaScript content from web resources
+- **Dependency Mapping**: Analyzes web resource dependencies to understand entity and attribute relationships
+- **JavaScript Pattern Detection**: Uses pattern matching to detect Dataverse API usage (`formContext`, `setVisible`, `setRequiredLevel`, etc.)
+- **Field Modification Discovery**: Identifies and documents field-level modifications made by JavaScript code
 
 ### 4. Correlation and Enrichment
 

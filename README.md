@@ -89,8 +89,41 @@ Console application providing:
 ## Documentation
 
 - **[DataDictionaryProcessor Guide](./DataDictionaryProcessor/README.md)** - Console application setup and usage
+- **[DataDictionary Plugin Guide](./DataDictionary/README.md)** - Plugin deployment and configuration
 - **[Developer Guide](./DataDictionaryProcessor/developer_guide.md)** - Comprehensive technical documentation and knowledge transfer guide
 - **[Architecture Documentation](./docs/)** - Detailed architectural analysis and recommendations
+
+## Sample Output
+
+The solution generates comprehensive data dictionaries including:
+
+```json
+{
+  "solution": "SampleSolution",
+  "entities": [
+    {
+      "logicalName": "account",
+      "displayName": "Account",
+      "attributes": [
+        {
+          "logicalName": "name",
+          "displayName": "Account Name",
+          "dataType": "String",
+          "isRequired": true,
+          "maxLength": 160,
+          "javascriptModifications": [
+            {
+              "webResource": "account_main.js",
+              "modificationType": "Visibility",
+              "condition": "formContext.getAttribute('customertype').getValue() === 1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Use Cases
 
