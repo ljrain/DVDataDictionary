@@ -38,12 +38,12 @@ namespace DataDictionaryProcessor
         }
 
 
-        public void BuildDataDictionary()
+        public void BuildDataDictionary(string[] solutionNames)
         {
             Console.WriteLine("Building Data Dictionary...");
 
             DateTime startTime = DateTime.Now;
-            DvCollector collector = new DvCollector(_serviceClient);
+            DvCollector collector = new DvCollector(_serviceClient, solutionNames);
             collector.CollectData();
             var elapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
             Console.ForegroundColor = ConsoleColor.Red;

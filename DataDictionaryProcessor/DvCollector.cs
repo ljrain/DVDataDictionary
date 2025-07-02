@@ -14,9 +14,10 @@ namespace DataDictionaryProcessor
     public class DvCollector
     {
 
-        public DvCollector(CrmServiceClient serviceClient)
+        public DvCollector(CrmServiceClient serviceClient, string[] solutionNames)
         {
             _serviceClient = serviceClient;
+            _solutionNames = solutionNames;
         }
 
         #region "Private Fields"
@@ -29,6 +30,7 @@ namespace DataDictionaryProcessor
         List<DataDictionaryJavaScriptFieldModification> modifications;
         private string[] _solutionObjectIds;
 
+        private string[] _solutionNames;
 
         #endregion
 
@@ -76,7 +78,7 @@ namespace DataDictionaryProcessor
              * 3) Attribute Metadata
              */
             // below will be a parameter or setting that accepts an array of solution unique names
-            GetSolutions(new string[] { "partnertracker" });
+            GetSolutions(_solutionNames);
             Console.WriteLine("Solutions collected: " + _ddSolutions.Count);
 
             // Iterate through the dictionary and pass each DataDictionarySolution object to GetComponentsInSolution
