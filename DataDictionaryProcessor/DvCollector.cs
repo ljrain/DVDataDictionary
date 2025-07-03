@@ -11,9 +11,20 @@ using System.Linq;
 
 namespace DataDictionaryProcessor
 {
+    /// <summary>
+    /// Collects and processes Dataverse solution metadata, including entities, attributes, and web resources.
+    /// </summary>
+    /// <remarks>
+    /// This class orchestrates the retrieval of solution components, entity and attribute metadata, and JavaScript field modifications
+    /// from Microsoft Dataverse using the provided <see cref="CrmServiceClient"/>. It builds a data dictionary model for further analysis or export.
+    /// </remarks>
     public class DvCollector
     {
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DvCollector"/> class.
+        /// </summary>
+        /// <param name="serviceClient">The CRM service client used for Dataverse operations.</param>
+        /// <param name="solutionNames">An array of solution unique names to process.</param>
         public DvCollector(CrmServiceClient serviceClient, string[] solutionNames)
         {
             _serviceClient = serviceClient;
@@ -29,36 +40,49 @@ namespace DataDictionaryProcessor
         private DvJavaScriptParser _dvJavaScriptParser;
         List<DataDictionaryJavaScriptFieldModification> modifications;
         private string[] _solutionObjectIds;
-
         private string[] _solutionNames;
 
         #endregion
 
-
         #region "Public Properties"
 
+        /// <summary>
+        /// Gets the dictionary of collected solutions, keyed by unique name.
+        /// </summary>
         public Dictionary<string, DataDictionarySolution> DDSolutions
         {
             get { return _ddSolutions; }
         }
 
+        /// <summary>
+        /// Gets the list of JavaScript field modifications found during processing.
+        /// </summary>
         public List<DataDictionaryJavaScriptFieldModification> Modifications
         {
             get { return modifications; }
         }
 
+        /// <summary>
+        /// Gets or sets the list of allowed entity logical names for filtering.
+        /// </summary>
         public List<string> AllowedLogicalNames
         {
             get { return _allowedLogicalNames; }
             set { _allowedLogicalNames = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the allowed table attributes for filtering.
+        /// </summary>
         public Dictionary<string, List<string>> AllowedTableAttributes
         {
             get { return _allowedtableAttributes; }
             set { _allowedtableAttributes = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the array of web resource object IDs collected from solutions.
+        /// </summary>
         public string[] SolutionObjectIds
         {
             get { return (_solutionObjectIds); }
@@ -67,17 +91,20 @@ namespace DataDictionaryProcessor
 
         #endregion
 
-
-
+        /// <summary>
+        /// Collects all relevant metadata from Dataverse, including solutions, components, entities, attributes, and web resources.
+        /// </summary>
         public void CollectData()
         {
             /*
              * Collect all metadata and store in models
              * 1) Solutions
              * 2) Solution Components
-             * 3) Attribute Metadata
+             * 2.1) Entities
+             * 2.2) Attributes
+             * 2.3) Web Resources
              */
-            // below will be a parameter or setting that accepts an array of solution unique names
+            // Solution names are pulled from appsettings.json under "Solutions" key
             GetSolutions(_solutionNames);
             DictionaryOrchestrator.LogEvent("Solutions collected: " + _ddSolutions.Count);
 
@@ -89,24 +116,21 @@ namespace DataDictionaryProcessor
                 GetAttributesBySolutionObjectIds(attributeIds.ToArray());
 
                 DictionaryOrchestrator.LogEvent($"Solution: {ddSolution.UniqueName}, Components Count: {ddSolution.Components.Count}");
+
                 //TODO: Investigating below
                 //QuerySolutionComponentAttributes(new Guid(ddSolution.SolutionId));
-
             }
             _solutionObjectIds = GetWebResourceObjectIds();
-
 
             DictionaryOrchestrator.LogEvent("Web Resource Object IDs collected: " + _solutionObjectIds.Length);
             List<Entity> webResources = GetWebResourcesByObjectIds(_solutionObjectIds);
             foreach (var webResource in webResources)
             {
-
                 _ddSolutions[_ddSolutions.FirstOrDefault().Key].WebResources.Add(new DataDictionaryWebResource
                 {
                     WebResourceId = webResource.GetAttributeValue<Guid>("webresourceid"),
                     Content = webResource.GetAttributeValue<string>("content"),
                     DisplayName = webResource.GetAttributeValue<string>("name"),
-                    
                 });
             }
 
@@ -129,6 +153,8 @@ namespace DataDictionaryProcessor
 
             DictionaryOrchestrator.LogEvent("Data collection completed.");
         }
+
+        #region Private Methods
 
         /// <summary>
         /// Takes in a string array of solution unique names and retrieves the solutions from CRM.
@@ -169,6 +195,11 @@ namespace DataDictionaryProcessor
             }
         }
 
+        /// <summary>
+        /// Queries solution components of type attribute for a given solution.
+        /// </summary>
+        /// <param name="solutionId">The solution ID to query components for.</param>
+        /// <returns>An <see cref="EntityCollection"/> of solution component attributes.</returns>
         private EntityCollection QuerySolutionComponentAttributes(Guid solutionId)
         {
             // Pseudocode:
@@ -203,26 +234,26 @@ namespace DataDictionaryProcessor
                 {
                     DictionaryOrchestrator.LogEvent("Table found");
                 }
-
             }
 
             return results;
         }
 
-
-
+        /// <summary>
+        /// Retrieves and adds all components for a given solution.
+        /// </summary>
+        /// <param name="ddSolution">The solution to retrieve components for.</param>
         private void GetComponentsInSolution(DataDictionarySolution ddSolution)
         {
-            // Query solutioncomponent for forms in the solution
             var componentQuery = new QueryExpression("solutioncomponent")
             {
                 ColumnSet = new ColumnSet("objectid", "componenttype", "ismetadata", "rootcomponentbehavior", "rootsolutioncomponentid", "solutionid"),
                 Criteria = new FilterExpression
                 {
                     Conditions =
-            {
-                new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(ddSolution.SolutionId)),
-            }
+                    {
+                        new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(ddSolution.SolutionId)),
+                    }
                 }
             };
 
@@ -237,11 +268,13 @@ namespace DataDictionaryProcessor
                     RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
                 };
                 ddSolution.AddComponent(ddComponent);
-
-                //DictionaryOrchestrator.LogEvent($"Component Type: {ddComponent.ComponentType}, Is Metadata: {ddComponent.IsMetadata}, Object Id: {ddComponent.ObjectId}");
             }
         }
 
+        /// <summary>
+        /// Gets the object IDs of web resource components from all collected solutions.
+        /// </summary>
+        /// <returns>Array of web resource object ID strings.</returns>
         private string[] GetWebResourceObjectIds()
         {
             List<string> objectIds = new List<string>();
@@ -268,8 +301,6 @@ namespace DataDictionaryProcessor
             if (objectIds == null || objectIds.Length == 0)
                 return new List<Entity>();
 
-            //_tracingService?.Trace("Retrieving web resources for object IDs: {0}", string.Join(", ", objectIds));
-
             var query = new QueryExpression("webresource")
             {
                 ColumnSet = new ColumnSet(
@@ -290,7 +321,6 @@ namespace DataDictionaryProcessor
                 }
             };
 
-            // Add the 'In' condition for the webresourceid
             var guidList = objectIds
                 .Where(id => Guid.TryParse(id, out _))
                 .Select(id => new Guid(id))
@@ -303,11 +333,12 @@ namespace DataDictionaryProcessor
 
             var results = _serviceClient.RetrieveMultiple(query);
 
-            //_tracingService?.Trace("Found {0} web resources.", results.Entities.Count);
-
             return results.Entities.ToList();
         }
 
+        /// <summary>
+        /// Processes entity components in all collected solutions and adds their metadata.
+        /// </summary>
         private void ProcessEntities()
         {
             foreach (DataDictionarySolution ddSolution in _ddSolutions.Values)
@@ -316,7 +347,6 @@ namespace DataDictionaryProcessor
                 {
                     if (ddComponent.ComponentType == 1) // Assuming 1 is the type for Entity
                     {
-                        // Retrieve entity details and attributes here
                         DictionaryOrchestrator.LogEvent($"Processing Entity Component: {ddComponent.ObjectId} in Solution: {ddSolution.UniqueName}");
 
                         var entityQuery = new QueryExpression("entity")
@@ -347,16 +377,17 @@ namespace DataDictionaryProcessor
                                 LogicalName = entity.GetAttributeValue<string>("logicalname")
                             };
                             ddSolution.AddEntity(ddEntity);
-                            _allowedLogicalNames.Add(ddEntity.LogicalName); // Add logical name to allowed list
-
-                            //DictionaryOrchestrator.LogEvent($"Entity: {ddEntity.Name}, Object Type Code: {ddEntity.ObjectTypeCode}, Entity Set Name: {ddEntity.EntitySetName}");
+                            _allowedLogicalNames.Add(ddEntity.LogicalName);
                         }
                     }
                 }
             }
         }
 
-
+        /// <summary>
+        /// Retrieves attribute metadata for the given attribute object IDs.
+        /// </summary>
+        /// <param name="AttributeObjectIds">Array of attribute object IDs (GUIDs).</param>
         private void GetAttributesBySolutionObjectIds(Guid[] AttributeObjectIds)
         {
             if (AttributeObjectIds == null || AttributeObjectIds.Length == 0)
@@ -373,7 +404,6 @@ namespace DataDictionaryProcessor
                 }
             };
 
-            // Fix for CS0200: Use AddRange to populate the PropertyNames collection instead of direct assignment
             retrieveMetadataRequest.Query.Properties.PropertyNames.AddRange(new[] { "LogicalName", "DisplayName", "MetadataId" });
 
             retrieveMetadataRequest.Query.Criteria = new MetadataFilterExpression
@@ -399,6 +429,9 @@ namespace DataDictionaryProcessor
             }
         }
 
+        /// <summary>
+        /// Logs the schema (entity and attribute metadata) for all allowed logical names into the Default solution.
+        /// </summary>
         private void LogSchema()
         {
             RetrieveAllEntitiesRequest request = null;
@@ -427,14 +460,6 @@ namespace DataDictionaryProcessor
                 };
                 response = (RetrieveAllEntitiesResponse)_serviceClient.Execute(request);
 
-                // Pseudocode plan:
-                // 1. Accept a list of allowed logical names (e.g., List<string> allowedLogicalNames or string[] allowedLogicalNames).
-                // 2. Filter the EntityMetadata results so that only those with LogicalName in the allowed list are included.
-                // 3. Apply this filter in the LINQ query where results are built.
-
-                // Example: Add a parameter to LogSchema or make allowedLogicalNames available in scope
-                // For demonstration, assume a variable allowedLogicalNames is available (e.g., string[] allowedLogicalNames).
-
                 IEnumerable<EntityMetadata> results = response.EntityMetadata
                     .Where(e => e.IsCustomizable != null
                         && _allowedLogicalNames.Contains(e.LogicalName))
@@ -456,17 +481,13 @@ namespace DataDictionaryProcessor
                             ddMeta.Description = attribute.Description?.UserLocalizedLabel?.Label ?? string.Empty;
                             ddMeta.IsCustom = attribute.IsCustomAttribute ?? false;
                             ddMeta.AuditEnabled = attribute.IsAuditEnabled.Value;
-                            //ddMeta.IsCalculated = attribute.IsCalculated.Value ?? false;
                             ddMeta.LangCode = attribute.DisplayName.UserLocalizedLabel?.LanguageCode ?? 0;
                             ddMeta.ModifiedOn = attribute.ModifiedOn ?? DateTime.MinValue;
-                            ddMeta.AttributeOf = entity.MetadataId.ToString(); // Assuming AttributeOf is the Entity's MetadataId
+                            ddMeta.AttributeOf = entity.MetadataId.ToString();
                             ddMeta.AttributeType = attribute.AttributeType.Value.ToString();
-                            //ddMeta.AttributeTypeName = attribute.AttributeTypeName ?? string.Empty;
-                            //ddMeta.AutoNumberFormat = (attribute as AutoNumberAttributeMetadata)?.Format ?? string.Empty;
                             ddMeta.CanBeSecuredForCreate = attribute.CanBeSecuredForCreate;
                             ddMeta.CanBeSecuredForRead = attribute.CanBeSecuredForRead;
                             ddMeta.CanBeSecuredForUpdate = attribute.CanBeSecuredForUpdate;
-                            //ddMeta.CanModifiedAdditionalSettings = attribute.CanModifyAdditionalSettings;
                             ddMeta.ColumnNumber = attribute.ColumnNumber;
                             ddMeta.CreatedOn = attribute.CreatedOn ?? DateTime.MinValue;
                             ddMeta.DeprecatedVersion = attribute.DeprecatedVersion ?? string.Empty;
@@ -477,34 +498,19 @@ namespace DataDictionaryProcessor
                             ddMeta.HasChanged = attribute.HasChanged ?? false;
                             ddMeta.InheritsFrom = attribute.InheritsFrom?.ToString() ?? string.Empty;
                             ddMeta.IntroducedVersion = attribute.IntroducedVersion ?? string.Empty;
-                            //ddMeta.IsAuditEnabled = attribute.IsAuditEnabled ?? false;
                             ddMeta.IsCustomAttribute = attribute.IsCustomAttribute ?? false;
                             ddMeta.IsCustomizable = attribute.IsCustomizable?.Value ?? false;
 
                             switch (attribute.AttributeType)
                             {
-                                //case AttributeTypeCode.Boolean:
-                                //    break;
-
                                 case AttributeTypeCode.BigInt:
                                     ddMeta.MinValue = (Int64?)((BigIntAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((BigIntAttributeMetadata)attribute).MaxValue;
                                     break;
-
-                                //case AttributeTypeCode.CalendarRules:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((CalendarRulesAttributeMetadata)attribute).MinValue, ((BigIntAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
-                                //case AttributeTypeCode.Customer:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((CustomerAttributeMetadata)attribute).MinValue, ((BigIntAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
                                 case AttributeTypeCode.DateTime:
-
                                     ddMeta.FormulaDefinition = ((DateTimeAttributeMetadata)attribute).FormulaDefinition;
                                     FormulaDefinition = ((DateTimeAttributeMetadata)attribute).FormulaDefinition;
                                     break;
-
                                 case AttributeTypeCode.Decimal:
                                     ddMeta.DataType = "Decimal";
                                     FormulaDefinition = ((DecimalAttributeMetadata)attribute).FormulaDefinition;
@@ -512,113 +518,55 @@ namespace DataDictionaryProcessor
                                     ddMeta.MaxValue = (Int64?)((DecimalAttributeMetadata)attribute).MaxValue;
                                     ddMeta.Precision = ((DecimalAttributeMetadata)attribute).Precision;
                                     break;
-
                                 case AttributeTypeCode.Double:
                                     ddMeta.DataType = "Double";
                                     ddMeta.MinValue = (Int64?)((DoubleAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((DoubleAttributeMetadata)attribute).MaxValue;
                                     break;
-
-                                //case AttributeTypeCode.EntityName:
-                                //    // !! sb.AppendFormat("\t\t{0}\t{1}", ((EntityNameAttributeMetadata)attribute).IsPrimaryId, ((EntityNameAttributeMetadata)attribute).IsPrimaryName);
-                                //    break;
-
                                 case AttributeTypeCode.Integer:
                                     FormulaDefinition = ((IntegerAttributeMetadata)attribute).FormulaDefinition;
                                     ddMeta.MinValue = (Int64?)((IntegerAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((IntegerAttributeMetadata)attribute).MaxValue;
                                     break;
-
                                 case AttributeTypeCode.Lookup:
                                     ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
                                         ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
                                         : null;
-
-                                    ddMeta.LookupTo = ((LookupAttributeMetadata)attribute).Targets != null
-                                        ? string.Join(",", ((LookupAttributeMetadata)attribute).Targets)
-                                        : null;
-
                                     break;
-
-                                //case AttributeTypeCode.ManagedProperty:
-                                //    // sb.AppendFormat("\t{0}\t\t", ((ManagedPropertyAttributeMetadata)attribute));
-                                //    break;
-
                                 case AttributeTypeCode.Memo:
                                     ddMeta.DataType = "Memo";
                                     ddMeta.MaxLength = ((MemoAttributeMetadata)attribute).MaxLength;
                                     break;
-
                                 case AttributeTypeCode.Money:
                                     ddMeta.DataType = "Money";
                                     FormulaDefinition = ((MoneyAttributeMetadata)attribute).FormulaDefinition;
                                     ddMeta.MinValue = (Int64?)((MoneyAttributeMetadata)attribute).MinValue;
                                     ddMeta.MaxValue = (Int64?)((MoneyAttributeMetadata)attribute).MaxValue;
                                     break;
-
-                                //case AttributeTypeCode.Owner:
-                                //    sb.AppendFormat("\t\t\t{0}\t{1}", ((OwnerAttributeMetadata)attribute).MinValue);
-                                //    break;
-
-                                //case AttributeTypeCode.PartyList:
-                                //    sb.AppendFormat("\t\t{0}\t\t", ((PartyListAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
-                                //    break;
-
                                 case AttributeTypeCode.Picklist:
                                     ddMeta.DataType = "Picklist";
                                     FormulaDefinition = ((PicklistAttributeMetadata)attribute).FormulaDefinition;
                                     PicklistAM = (PicklistAttributeMetadata)attribute;
-
                                     switch (PicklistAM.OptionSet.Options.Count)
                                     {
                                         case 0:
-                                            //sb.Append("\t\t\t");
                                             break;
                                         case 1:
                                             om = PicklistAM.OptionSet.Options[0];
-
                                             break;
                                         default:
                                             om = PicklistAM.OptionSet.Options[0];
-                                            //sb.AppendFormat("\t{0}\t{1}\t{2}", om.Value, om.Label.UserLocalizedLabel.Label, om.Label.UserLocalizedLabel.LanguageCode);
                                             for (int j = 1; j < PicklistAM.OptionSet.Options.Count; j++)
                                             {
-                                                //sb.AppendLine();
-                                                //for (int i = 0; i < tabIndex; i++) { //sb.Append("\t"); }
-                                                ////om = PicklistAM.OptionSet.Options[j];
-                                                ////sb.AppendFormat("\t{0}\t{1}\t{2}", om.Value, om.Label.UserLocalizedLabel.Label, om.Label.UserLocalizedLabel.LanguageCode);
+                                                // Option handling
                                             }
                                             break;
                                     }
-                                    //sb.AppendLine();
                                     break;
-
-                                //case AttributeTypeCode.State:
-                                //    sb.AppendFormat("\t{0}\t\t", ((StateAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
-                                //    break;
-
-                                //case AttributeTypeCode.Status:
-                                //    sb.AppendFormat("\t{0}\t\t", ((StatusAttributeMetadata)attribute).OptionSet.OptionSetType.ToString());
-                                //    break;
-
                                 case AttributeTypeCode.String:
                                     ddMeta.DataType = "String";
                                     FormulaDefinition = ((StringAttributeMetadata)attribute).FormulaDefinition;
-                                    //sb.AppendFormat("\t{0}\t{1}\t\t{2}\t\t\t"
-                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (FormulaDefinition.Trim().StartsWith("<?"))
-                                    //    , String.IsNullOrEmpty(FormulaDefinition) ? false : (!FormulaDefinition.Trim().StartsWith("<?") && FormulaDefinition.Trim().Length > 0)
-                                    //    , ((StringAttributeMetadata)attribute).MaxLength
-                                    //    );
                                     break;
-
-                                //case AttributeTypeCode.Uniqueidentifier:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((UniqueIdentifierAttributeMetadata)attribute).IsPrimaryId, ((UniqueIdentifierAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
-                                //case AttributeTypeCode.Virtual:
-                                //    sb.AppendFormat("\t\t{0}\t{1}", ((VirtualAttributeMetadata)attribute).MinValue, ((VirtualAttributeMetadata)attribute).MaxValue);
-                                //    break;
-
                                 default:
                                     break;
                             }
@@ -626,7 +574,6 @@ namespace DataDictionaryProcessor
                             _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
                         }
                     }
-
                 }
                 else
                 {
@@ -635,7 +582,6 @@ namespace DataDictionaryProcessor
             }
             catch (Exception)
             {
-
                 throw;
             }
             finally
@@ -646,6 +592,7 @@ namespace DataDictionaryProcessor
                 request = null;
             }
         }
+
         /// <summary>
         /// Returns the ObjectIds of components of type 2 (Attribute) for the given DataDictionarySolution.
         /// </summary>
@@ -659,5 +606,7 @@ namespace DataDictionaryProcessor
                 .Select(c => c.ObjectId)
                 .ToList();
         }
+
+        #endregion
     }
 }
