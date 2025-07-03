@@ -1,52 +1,101 @@
-# DataDictionaryProcessor
+# DataDictionaryProcessor - Console Application
 
-> **Disclaimer:**  
-> This software and its documentation are provided as a proof of concept for demonstration and reference purposes only. No warranty, express or implied, is provided. Use at your own risk.
+## Technical Overview
 
-## Overview
+**DataDictionaryProcessor** is the primary console application for automated data dictionary generation in Microsoft Dataverse environments. It provides comprehensive metadata extraction, JavaScript analysis, and documentation generation capabilities through a command-line interface optimized for enterprise deployments and CI/CD integration.
 
-**DataDictionaryProcessor** is a console application that generates comprehensive data dictionaries for Microsoft Dataverse (Dynamics 365) solutions. It automates the extraction of metadata about entities, attributes, and web resources, analyzes JavaScript code for field modifications, and correlates this information to create a unified data dictionary.
+## Architecture
 
-This tool is designed for Dataverse administrators, developers, and business analysts who need to document and understand the structure and behavior of their Dataverse solutions.
+### Console Application Design
+- **Single-purpose execution**: Focused on data dictionary generation with clear start/finish workflow
+- **Enterprise integration**: Designed for automation, scheduling, and pipeline integration
+- **Performance monitoring**: Built-in timing and progress reporting for production environments
+- **Error resilience**: Comprehensive error handling with detailed logging for troubleshooting
 
-### Key Features
+### Core Processing Pipeline
+1. **Configuration & Authentication** - Secure connection establishment
+2. **Metadata Collection** - Comprehensive Dataverse solution analysis
+3. **JavaScript Analysis** - Advanced parsing of form scripts and customizations
+4. **Data Correlation** - Intelligent linking of metadata and behavioral logic
+5. **Output Generation** - Structured documentation with centralized storage
 
-- **Automated Metadata Extraction**: Retrieves comprehensive solution, entity, and attribute metadata from Dataverse
-- **JavaScript Analysis**: Parses JavaScript web resources to identify field modifications, visibility changes, and business logic
-- **Data Correlation**: Links JavaScript modifications with their corresponding entity attributes and metadata
-- **Flexible Output**: Generates structured data dictionary with detailed console reporting
-- **Solution-Scoped**: Processes specific solutions rather than entire environments
-- **Comprehensive Logging**: Provides detailed progress and timing information
+## Technical Features
 
-## Prerequisites
+### Automated Metadata Extraction
+- **Solution-scoped processing**: Analyzes specific solutions rather than entire environments
+- **Complete component coverage**: Entities, attributes, relationships, forms, views, and web resources
+- **Dependency mapping**: Identifies relationships and dependencies between components
+- **Performance optimization**: Batched API calls and efficient data processing
 
-### System Requirements
+### Advanced JavaScript Analysis
+- **Pattern-based parsing**: Recognizes common Dataverse JavaScript patterns and custom implementations
+- **Field modification detection**: Identifies visibility, requirement, and value changes
+- **Business logic discovery**: Documents custom behaviors and validation rules
+- **API usage analysis**: Tracks Dataverse API patterns and best practices
+- **Dependency correlation**: Links JavaScript behaviors with affected fields and entities
 
-- **Operating System**: Windows (due to .NET Framework 4.6.2 requirement)
-- **.NET Framework**: 4.6.2 or higher
-- **Development Environment**: Visual Studio 2017 or later (for building from source)
+### Enterprise Integration
+- **CI/CD pipeline support**: Command-line interface suitable for automated workflows
+- **Scheduled execution**: Windows Task Scheduler and automation platform compatibility
+- **Configuration management**: JSON-based configuration with environment-specific support
+- **Comprehensive logging**: Detailed progress reporting and error information
 
-### Dataverse Requirements
+## System Requirements
 
-- **Dataverse Environment**: Access to a Microsoft Dataverse or Dynamics 365 environment
-- **Authentication**: Azure AD application registration with appropriate permissions
-- **Permissions**: The application must have sufficient privileges to:
-  - Read solution metadata
-  - Read entity and attribute metadata
-  - Read web resource content
-  - Query solution components
+### Technical Prerequisites
 
-### Azure AD Application Setup
+#### Runtime Environment
+- **Operating System**: Windows (required for .NET Framework 4.6.2)
+- **.NET Framework**: Version 4.6.2 or higher
+- **Memory**: 8GB RAM minimum, 16GB recommended for large solutions
+- **Storage**: 1GB available disk space
+- **Network**: Reliable internet connectivity to Dataverse environment
 
-1. Register a new application in Azure AD
-2. Grant the following API permissions:
-   - **Dynamics CRM**: `user_impersonation`
-3. Create a client secret
-4. Note the following values for configuration:
-   - Application (Client) ID
-   - Client Secret
-   - Tenant ID
-   - Dataverse Environment URL
+#### Development Environment (if building from source)
+- **Visual Studio 2017 or later** with .NET Framework development workload
+- **NuGet Package Manager** for dependency resolution
+- **MSBuild** for automated builds
+
+### Dataverse Environment Requirements
+
+- **Microsoft Dataverse** or Dynamics 365 environment access
+- **Published solutions** containing entities, attributes, and web resources
+- **JavaScript web resources** for meaningful analysis output
+- **Administrative or developer access** for comprehensive metadata retrieval
+
+### Authentication and Security
+
+#### Azure AD Application Registration
+Required application configuration in Azure Active Directory:
+
+1. **Application Registration** in your Azure AD tenant
+2. **API Permissions**: Dynamics CRM `user_impersonation` 
+3. **Client Secret** with appropriate expiration policy
+4. **Admin Consent** granted for Dataverse access
+
+#### Required Configuration Values
+```json
+{
+  "CRMURL": "https://your-environment.crm.dynamics.com",
+  "CLIENTID": "azure-ad-application-client-id",
+  "CLIENTSECRET": "azure-ad-application-secret",
+  "TENANTID": "azure-ad-tenant-id",
+  "SOLUTIONS": ["solution1", "solution2"]
+}
+```
+
+#### Dataverse Permissions
+The authenticated principal requires:
+
+**Read Access**:
+- Solution metadata and component inventory
+- Entity and attribute schema information
+- Web resource content and dependencies  
+- Form, view, and business rule configurations
+
+**Write Access** (for output storage):
+- Data dictionary table creation and record management
+- Documentation entity updates and attachment creation
 
 ## Installation
 
