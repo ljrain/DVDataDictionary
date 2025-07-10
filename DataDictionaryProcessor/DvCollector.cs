@@ -105,6 +105,7 @@ namespace DataDictionaryProcessor
              * 2.3) Web Resources
              */
             // Solution names are pulled from appsettings.json under "Solutions" key
+            DictionaryOrchestrator.LogEvent("Collecting solutions from " + _serviceClient.ConnectedOrgFriendlyName);
             GetSolutions(_solutionNames);
             DictionaryOrchestrator.LogEvent("Solutions collected: " + _ddSolutions.Count);
 

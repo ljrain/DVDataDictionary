@@ -17,7 +17,8 @@ namespace DataDictionaryProcessor
 
         #region "Private Fields"
 
-        private CrmServiceClient _serviceClient;
+        private CrmServiceClient _serviceClientScanner;
+        private CrmServiceClient _serviceClientSaver;
 
 
         #endregion
@@ -31,18 +32,28 @@ namespace DataDictionaryProcessor
         }
 
 
-        public DictionaryOrchestrator(string connectionString)
+        public DictionaryOrchestrator(string connectionStringSaver,string connectionStringScanner)
         {
 
-            _serviceClient = new CrmServiceClient(connectionString);
-            if (_serviceClient.IsReady)
+            _serviceClientScanner = new CrmServiceClient(connectionStringScanner);
+            if (_serviceClientScanner.IsReady)
             {
                 DictionaryOrchestrator.LogEvent("Connected to Dynamics CRM!");
             }
             else
             {
-                DictionaryOrchestrator.LogEvent("Failed to connect to Dynamics CRM: " + _serviceClient.LastCrmError);
+                DictionaryOrchestrator.LogEvent("Failed to connect to Dynamics CRM: " + _serviceClientScanner.LastCrmError);
                 throw new Exception("CRM connection failed");
+            }
+            _serviceClientSaver = new CrmServiceClient(connectionStringSaver);
+            if (_serviceClientSaver.IsReady)
+            {
+                DictionaryOrchestrator.LogEvent("Connected to Dynamics CRM for saving!");
+            }
+            else
+            {
+                DictionaryOrchestrator.LogEvent("Failed to connect to Dynamics CRM for saving: " + _serviceClientSaver.LastCrmError);
+                throw new Exception("CRM connection for saving failed");
             }
         }
 
@@ -52,7 +63,7 @@ namespace DataDictionaryProcessor
             DictionaryOrchestrator.LogEvent("Building Data Dictionary...");
 
             DateTime startTime = DateTime.Now;
-            DvCollector collector = new DvCollector(_serviceClient, solutionNames);
+            DvCollector collector = new DvCollector(_serviceClientScanner, solutionNames);
             collector.CollectData();
             var elapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
             DictionaryOrchestrator.LogEvent($"Data collection took {elapsedTime} seconds.",ConsoleColor.Red );
@@ -70,7 +81,7 @@ namespace DataDictionaryProcessor
 
             startTime = DateTime.Now;
             // Save to Dataverse
-            DvSaver saver = new DvSaver(_serviceClient, processor.DdModel);
+            DvSaver saver = new DvSaver(_serviceClientSaver, processor.DdModel);
             saver.SaveToDataverse();
             DateTime saveStartTime = DateTime.Now;
             DictionaryOrchestrator.LogEvent($"Data saved to Dataverse in {DateTime.Now.Subtract(saveStartTime).TotalSeconds.ToString("F2")} seconds.", ConsoleColor.Red);
