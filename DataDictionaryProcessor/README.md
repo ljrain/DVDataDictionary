@@ -339,4 +339,4 @@ For issues, questions, or contributions:
 
 - [Developer Guide](./developer_guide.md) - Comprehensive technical documentation and knowledge transfer guide
 - [Project README](../README.md) - Overview of the entire DVDataDictionary solution
-- [Architecture Documentation](../docs/) - Detailed architectural analysis and implementation recommendations
+- [Technical Documentation](../docs/) - Architecture and implementation references
