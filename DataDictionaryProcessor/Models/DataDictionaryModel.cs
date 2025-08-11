@@ -15,6 +15,8 @@ namespace DataDictionary.Models
 
         public Dictionary<string, DataDictionaryWebResource> WebResources { get; set; } = new Dictionary<string, DataDictionaryWebResource>();
 
+        public List<DataDictionaryJavaScriptFieldModification> JavaScriptFieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
+
     }
 
 }

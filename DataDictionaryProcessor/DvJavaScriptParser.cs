@@ -149,36 +149,36 @@ namespace DataDictionaryProcessor
                 }
 
                 // Process advanced patterns only if no primary patterns matched
-                bool foundInPrimary = patterns.Any(p => p.Regex.IsMatch(line));
-                if (!foundInPrimary)
-                {
-                    foreach (var pattern in advancedPatterns)
-                    {
-                        var matches = pattern.Regex.Matches(line);
-                        foreach (Match match in matches)
-                        {
-                            if (match.Groups.Count > pattern.ValueGroup)
-                            {
-                                var modification = new DataDictionaryJavaScriptFieldModification
-                                {
-                                    FieldName = match.Groups[1].Value,
-                                    WebResourceId = webResourceId,
-                                    WebResourceName = webResourceName,
-                                    ModificationType = pattern.Type,
-                                    ModificationValue = match.Groups[pattern.ValueGroup].Value,
-                                    JavaScriptCode = line.Trim(),
-                                    LineNumber = lineIndex + 1,
-                                    Notes = "Advanced pattern detected - may need manual verification",
-                                    ParsedOn = DateTime.UtcNow
-                                };
+                //bool foundInPrimary = patterns.Any(p => p.Regex.IsMatch(line));
+                //if (!foundInPrimary)
+                //{
+                //    foreach (var pattern in advancedPatterns)
+                //    {
+                //        var matches = pattern.Regex.Matches(line);
+                //        foreach (Match match in matches)
+                //        {
+                //            if (match.Groups.Count > pattern.ValueGroup)
+                //            {
+                //                var modification = new DataDictionaryJavaScriptFieldModification
+                //                {
+                //                    FieldName = match.Groups[1].Value,
+                //                    WebResourceId = webResourceId,
+                //                    WebResourceName = webResourceName,
+                //                    ModificationType = pattern.Type,
+                //                    ModificationValue = match.Groups[pattern.ValueGroup].Value,
+                //                    JavaScriptCode = line.Trim(),
+                //                    LineNumber = lineIndex + 1,
+                //                    Notes = "Advanced pattern detected - may need manual verification",
+                //                    ParsedOn = DateTime.UtcNow
+                //                };
 
-                                modifications.Add(modification);
+                //                modifications.Add(modification);
 
-                                DictionaryOrchestrator.LogEvent($"Found advanced {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
-                            }
-                        }
-                    }
-                }
+                //                DictionaryOrchestrator.LogEvent($"Found advanced {pattern.Type} modification for field '{modification.FieldName}': {modification.ModificationValue}");
+                //            }
+                //        }
+                //    }
+                //}
             }
 
             return modifications;

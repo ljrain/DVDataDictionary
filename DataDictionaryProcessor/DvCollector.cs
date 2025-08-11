@@ -8,6 +8,7 @@ using Microsoft.Xrm.Tooling.Connector;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Web.UI.WebControls;
 
 namespace DataDictionaryProcessor
 {
@@ -38,7 +39,7 @@ namespace DataDictionaryProcessor
         private List<string> _allowedLogicalNames = new List<string>();
         private Dictionary<string, List<string>> _allowedtableAttributes = new Dictionary<string, List<string>>();
         private DvJavaScriptParser _dvJavaScriptParser;
-        List<DataDictionaryJavaScriptFieldModification> modifications;
+        List<DataDictionaryJavaScriptFieldModification> modifications = new List<DataDictionaryJavaScriptFieldModification>();
         private string[] _solutionObjectIds;
         private string[] _solutionNames;
 
@@ -127,10 +128,16 @@ namespace DataDictionaryProcessor
             List<Entity> webResources = GetWebResourcesByObjectIds(_solutionObjectIds);
             foreach (var webResource in webResources)
             {
+                // added below to handle content length exceeding limits
+                string fullContent = webResource.GetAttributeValue<string>("content");
+                if (fullContent.Length > 4000)
+                {
+                    fullContent = fullContent.Substring(0, 4000); // Truncate to avoid exceeding limits
+                }
                 _ddSolutions[_ddSolutions.FirstOrDefault().Key].WebResources.Add(new DataDictionaryWebResource
                 {
                     WebResourceId = webResource.GetAttributeValue<Guid>("webresourceid"),
-                    Content = webResource.GetAttributeValue<string>("content"),
+                    Content = fullContent,
                     DisplayName = webResource.GetAttributeValue<string>("name"),
                 });
             }
@@ -141,10 +148,24 @@ namespace DataDictionaryProcessor
             // parse javascript that was found in web resources
             foreach (var webResource in webResources)
             {
-                modifications = _dvJavaScriptParser.ParseFieldModifications(webResource.GetAttributeValue<string>("content"),
+                //if (webResource.GetAttributeValue<string>("webresourcetype") != "JavaScript")
+                //{
+                //    continue; // Skip non-JavaScript web resources
+                //}
+                //DictionaryOrchestrator.LogEvent($"Parsing JavaScript for Web Resource: {webResource.GetAttributeValue<int>("webresourcetype")}");
+
+                // With this:
+                var fieldMods = _dvJavaScriptParser.ParseFieldModifications(
+                    webResource.GetAttributeValue<string>("content"),
                     webResource.GetAttributeValue<Guid>("webresourceid"),
                     webResource.GetAttributeValue<string>("name"));
+                if (fieldMods != null && fieldMods.Count > 0)
+                {
+                    modifications.AddRange(fieldMods);
+                }
             }
+            _ddSolutions["Default"].JavaScriptFieldModifications = modifications;
+
 
             ProcessEntities();
             DictionaryOrchestrator.LogEvent("Entities processed: " + _ddSolutions.Values.Sum(s => s.Entities.Count));
@@ -331,6 +352,8 @@ namespace DataDictionaryProcessor
                 return new List<Entity>();
 
             query.Criteria.AddCondition(new ConditionExpression("webresourceid", ConditionOperator.In, guidList.Cast<object>().ToArray()));
+            // Only include web resources of type JavaScript (type id = 3)
+            query.Criteria.AddCondition(new ConditionExpression("webresourcetype", ConditionOperator.Equal, 3));
 
             var results = _serviceClient.RetrieveMultiple(query);
 
@@ -461,9 +484,13 @@ namespace DataDictionaryProcessor
                 };
                 response = (RetrieveAllEntitiesResponse)_serviceClient.Execute(request);
 
+                //IEnumerable<EntityMetadata> results = response.EntityMetadata
+                //    .Where(e => e.IsCustomizable != null
+                //        && _allowedLogicalNames.Contains(e.LogicalName))
+                //    .OrderBy(e => e.LogicalName)
+                //    .ToList();
+
                 IEnumerable<EntityMetadata> results = response.EntityMetadata
-                    .Where(e => e.IsCustomizable != null
-                        && _allowedLogicalNames.Contains(e.LogicalName))
                     .OrderBy(e => e.LogicalName)
                     .ToList();
 

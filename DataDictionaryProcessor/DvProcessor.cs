@@ -110,8 +110,8 @@ namespace DataDictionaryProcessor
             foreach (var solutionName in _ddSolutions.Keys)
             {
                 DictionaryOrchestrator.LogEvent($"Processing Solution: {solutionName}");
-                if (solutionName == "Default")
-                    return;
+                //if (solutionName == "Default")
+                //    return;
 
                 _ddModel.Solutions.Add(solutionName);
 
@@ -161,6 +161,7 @@ namespace DataDictionaryProcessor
                     DictionaryOrchestrator.LogEvent($"Processing Attributes for Entity: {entity.LogicalName}");
                 }
             }
+            _ddModel.JavaScriptFieldModifications = _ddSolutions["Default"].JavaScriptFieldModifications;
             DictionaryOrchestrator.LogEvent("Data Dictionary Processing Complete.");
         }
 

@@ -58,6 +58,8 @@ namespace DataDictionary.Models
             }
         }
 
+        public List<DataDictionaryJavaScriptFieldModification> JavaScriptFieldModifications { get; set; } = new List<DataDictionaryJavaScriptFieldModification>();
+
         public string[] GetLogicalEntitiesFromSolutions()
         {
             return Entities.Select(e => e.LogicalName).ToArray();
