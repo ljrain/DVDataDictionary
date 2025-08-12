@@ -121,7 +121,7 @@ This dual-environment architecture supports advanced scenarios such as:
    DataDictionaryProcessor.exe
    ```
    - Review console output for processing progress
-   - Access generated documentation in your specified Dataverse environment
+   - Access generated documentation in your **storage environment** (DATADICTIONARY section)
 
 ## Complete Documentation Suite
 

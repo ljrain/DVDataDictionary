@@ -76,11 +76,19 @@ Required application configuration in Azure Active Directory:
 #### Required Configuration Values
 ```json
 {
-  "CRMURL": "https://your-environment.crm.dynamics.com",
-  "CLIENTID": "azure-ad-application-client-id",
-  "CLIENTSECRET": "azure-ad-application-secret",
-  "TENANTID": "azure-ad-tenant-id",
-  "SOLUTIONS": ["solution1", "solution2"]
+  "DATADICTIONARY": {
+    "CRMURL": "https://docs-environment.crm.dynamics.com",
+    "CLIENTID": "azure-ad-application-client-id",
+    "CLIENTSECRET": "azure-ad-application-secret",
+    "TENANTID": "azure-ad-tenant-id"
+  },
+  "DATAVERSE": {
+    "CRMURL": "https://source-environment.crm.dynamics.com",
+    "CLIENTID": "azure-ad-application-client-id",
+    "CLIENTSECRET": "azure-ad-application-secret",
+    "TENANTID": "azure-ad-tenant-id",
+    "SOLUTIONS": ["solution1", "solution2"]
+  }
 }
 ```
 
