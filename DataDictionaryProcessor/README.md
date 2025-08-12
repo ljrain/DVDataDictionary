@@ -76,11 +76,19 @@ Required application configuration in Azure Active Directory:
 #### Required Configuration Values
 ```json
 {
-  "CRMURL": "https://your-environment.crm.dynamics.com",
-  "CLIENTID": "azure-ad-application-client-id",
-  "CLIENTSECRET": "azure-ad-application-secret",
-  "TENANTID": "azure-ad-tenant-id",
-  "SOLUTIONS": ["solution1", "solution2"]
+  "DATADICTIONARY": {
+    "CRMURL": "https://docs-environment.crm.dynamics.com",
+    "CLIENTID": "azure-ad-application-client-id",
+    "CLIENTSECRET": "azure-ad-application-secret",
+    "TENANTID": "azure-ad-tenant-id"
+  },
+  "DATAVERSE": {
+    "CRMURL": "https://source-environment.crm.dynamics.com",
+    "CLIENTID": "azure-ad-application-client-id",
+    "CLIENTSECRET": "azure-ad-application-secret",
+    "TENANTID": "azure-ad-tenant-id",
+    "SOLUTIONS": ["solution1", "solution2"]
+  }
 }
 ```
 
@@ -130,47 +138,75 @@ The authenticated principal requires:
 
 ### appsettings.json
 
-The application requires configuration in the `appsettings.json` file located in the same directory as the executable:
+The application requires configuration in the `appsettings.json` file located in the same directory as the executable. The configuration supports dual-environment operation:
 
 ```json
 {
-  "CRMURL": "https://your-environment.crm.dynamics.com",
-  "CLIENTID": "your-azure-ad-client-id",
-  "CLIENTSECRET": "your-azure-ad-client-secret",
-  "TENANTID": "your-azure-ad-tenant-id"
+  "DATADICTIONARY": {
+    "CRMURL": "https://docs-environment.crm.dynamics.com",
+    "CLIENTID": "your-azure-ad-client-id",
+    "CLIENTSECRET": "your-azure-ad-client-secret",
+    "TENANTID": "your-azure-ad-tenant-id"
+  },
+  "DATAVERSE": {
+    "CRMURL": "https://source-environment.crm.dynamics.com",
+    "CLIENTID": "your-azure-ad-client-id",
+    "CLIENTSECRET": "your-azure-ad-client-secret",
+    "TENANTID": "your-azure-ad-tenant-id",
+    "SOLUTIONS": ["Solution1", "Solution2"]
+  }
 }
 ```
 
+### Environment Configuration Options
+
+1. **Single Environment**: Use the same environment for both scanning and storage by setting identical values in both sections
+2. **Dual Environment**: Scan one environment (development/test) and store documentation in another (production/documentation repository)
+3. **Multiple Solutions**: Specify an array of solution names to analyze in the `DATAVERSE:SOLUTIONS` section
+
 ### Configuration Parameters
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `CRMURL` | Your Dataverse environment URL | `https://contoso.crm.dynamics.com` |
-| `CLIENTID` | Azure AD application client ID | `12345678-1234-1234-1234-123456789012` |
-| `CLIENTSECRET` | Azure AD application client secret | `abcdef123456...` |
-| `TENANTID` | Azure AD tenant ID | `87654321-4321-4321-4321-210987654321` |
+| Parameter | Description | Example | Required |
+|-----------|-------------|---------|----------|
+| **DATADICTIONARY Section** | Configuration for documentation storage environment | | |
+| `CRMURL` | Dataverse environment URL for storing documentation | `https://docs.crm.dynamics.com` | Yes |
+| `CLIENTID` | Azure AD application client ID for storage environment | `12345678-1234-1234-1234-123456789012` | Yes |
+| `CLIENTSECRET` | Azure AD application client secret for storage | `abcdef123456...` | Yes |
+| `TENANTID` | Azure AD tenant ID for storage environment | `87654321-4321-4321-4321-210987654321` | Yes |
+| **DATAVERSE Section** | Configuration for source environment scanning | | |
+| `CRMURL` | Dataverse environment URL to scan for metadata | `https://dev.crm.dynamics.com` | Yes |
+| `CLIENTID` | Azure AD application client ID for source environment | `12345678-1234-1234-1234-123456789012` | Yes |
+| `CLIENTSECRET` | Azure AD application client secret for source | `abcdef123456...` | Yes |
+| `TENANTID` | Azure AD tenant ID for source environment | `87654321-4321-4321-4321-210987654321` | Yes |
+| `SOLUTIONS` | Array of solution names to analyze | `["Solution1", "Solution2"]` | Yes |
 
 ## Usage
 
 ### Basic Usage
 
-1. **Configure Connection**: Update `appsettings.json` with your environment details
+1. **Configure Environments**: Update `appsettings.json` with your source and storage environment details
 2. **Run the Application**:
    ```cmd
    DataDictionaryProcessor.exe
    ```
-3. **Monitor Progress**: The application will display detailed progress information in the console
-4. **Review Results**: Examine the generated data dictionary output
+3. **Monitor Progress**: The application displays detailed progress information showing:
+   - Connection status for both environments
+   - Solution scanning progress
+   - Metadata collection statistics
+   - JavaScript analysis results
+   - Data correlation and storage progress
+4. **Review Results**: Access the generated data dictionary in your specified storage environment
 
 ### Current Workflow
 
-The application follows this workflow:
+The application follows this dual-environment workflow:
 
-1. **Initialize**: Load configuration and establish Dataverse connection
-2. **Collect Metadata**: Retrieve solution, entity, attribute, and web resource metadata
-3. **Parse JavaScript**: Analyze JavaScript web resources for field modifications
-4. **Correlate Data**: Link JavaScript modifications with attribute metadata
-5. **Generate Output**: Create comprehensive data dictionary and display results
+1. **Initialize**: Load dual-environment configuration and establish connections to both source and storage environments
+2. **Collect Metadata**: Retrieve solution, entity, attribute, and web resource metadata from the source environment
+3. **Parse JavaScript**: Analyze JavaScript web resources for field modifications and business logic
+4. **Correlate Data**: Link JavaScript modifications with attribute metadata to create comprehensive documentation
+5. **Store Results**: Save the complete data dictionary to the storage environment for centralized access
+6. **Generate Reports**: Create summary output and performance metrics in the console
 
 ### Output Information
 
@@ -198,20 +234,21 @@ DictionaryOrchestrator.cs
 └─────────────────┴─────────────────┴─────────────────┘
     ↓                   ↓                   ↓
 ┌─────────────────┬─────────────────┬─────────────────┐
-│ Dataverse API   │ JavaScript      │ Dataverse API   │
-│ Metadata        │ Parser          │ Data Storage    │
+│ Source Dataverse│ JavaScript      │Storage Dataverse│
+│ API Metadata    │ Parser & Logic  │ API Storage     │
+│ (DATAVERSE)     │ Correlation     │ (DATADICTIONARY)│
 └─────────────────┴─────────────────┴─────────────────┘
 ```
 
 ### Key Classes
 
-- **Program.cs**: Application entry point and configuration management
-- **DictionaryOrchestrator.cs**: Main workflow coordinator
-- **DvCollector.cs**: Dataverse metadata collection service
+- **Program.cs**: Application entry point and dual-environment configuration management
+- **DictionaryOrchestrator.cs**: Main workflow coordinator managing both source and storage connections
+- **DvCollector.cs**: Source environment metadata collection service
 - **DvProcessor.cs**: Data processing and correlation engine
 - **DvJavaScriptParser.cs**: JavaScript analysis and field modification detection
-- **DvSaver.cs**: Data persistence service (future enhancement)
-- **Models/**: Data structure definitions
+- **DvSaver.cs**: Storage environment data persistence service
+- **Models/**: Comprehensive data structure definitions for all solution components
 
 ## Troubleshooting
 
@@ -222,31 +259,34 @@ DictionaryOrchestrator.cs
 **Error**: "Failed to connect to Dynamics CRM"
 
 **Solutions**:
-- Verify your `appsettings.json` configuration
-- Ensure the Azure AD application has proper permissions
-- Check that the client secret is valid and not expired
-- Confirm the Dataverse environment URL is correct
-- Verify network connectivity to the Dataverse environment
+- Verify your `appsettings.json` configuration for both DATADICTIONARY and DATAVERSE sections
+- Ensure both Azure AD applications have proper permissions for their respective environments
+- Check that client secrets are valid and not expired for both environments
+- Confirm both Dataverse environment URLs are correct and accessible
+- Verify network connectivity to both environments
+- Test connections individually by temporarily using the same environment for both sections
 
 #### Authentication Issues
 
 **Error**: Authentication-related exceptions
 
 **Solutions**:
-- Verify the `CLIENTID`, `CLIENTSECRET`, and `TENANTID` values
-- Ensure the Azure AD application is granted consent for Dataverse access
-- Check that the application registration is in the correct tenant
-- Verify that the client secret has not expired
+- Verify the `CLIENTID`, `CLIENTSECRET`, and `TENANTID` values for both environments
+- Ensure Azure AD applications are granted consent for Dataverse access in both tenants
+- Check that application registrations are in the correct tenants
+- Verify that client secrets have not expired for either environment
+- Confirm cross-environment permissions if using different tenants
 
 #### Metadata Retrieval Issues
 
 **Error**: Missing entities or attributes in output
 
 **Solutions**:
-- Ensure the Azure AD application has sufficient permissions
-- Verify that the solutions are published in Dataverse
-- Check that the target solutions exist and are accessible
+- Ensure Azure AD applications have sufficient permissions for the source environment
+- Verify that the specified solutions exist and are published in the source environment
+- Check that the target solutions are accessible to the authenticated user
 - Review the console output for any filtering or permission warnings
+- Verify the SOLUTIONS array in the DATAVERSE section is correctly formatted
 
 #### JavaScript Parsing Issues
 

@@ -52,6 +52,12 @@ The category of data that a field can contain, such as text, whole number, curre
 **Dataverse**  
 Microsoft's cloud-based data platform that provides secure storage and rich data types for business applications. Formerly known as Common Data Service (CDS).
 
+**DataDictionaryProcessor**  
+The console application component of DVDataDictionary that handles automated metadata extraction and documentation generation.
+
+**Dual-Environment Configuration**  
+A setup where DVDataDictionary scans one Dataverse environment (source) and stores the generated documentation in another environment (storage). This enables separation of operational and documentation environments.
+
 **Default Value**  
 A predetermined value automatically assigned to a field when a new record is created, often set through JavaScript or business rules.
 
@@ -95,6 +101,20 @@ A programming language used to implement custom business logic on Dataverse form
 
 **JavaScript Analysis**  
 The process of examining JavaScript code to identify how it modifies field behavior, visibility, requirements, and values.
+
+**JSON (JavaScript Object Notation)**  
+A lightweight data format used for configuration files, including DVDataDictionary's appsettings.json file.
+
+## M
+
+**Metadata**  
+Data about data - information that describes the structure, properties, and relationships of entities and attributes in Dataverse.
+
+**Metadata Analysis**  
+The process of extracting and documenting the structure and configuration of Dataverse solutions, including entities, attributes, relationships, and web resources.
+
+**Multi-Environment Scanning**  
+The capability to scan metadata from one Dataverse environment while storing the generated documentation in a different environment.
 
 ## L
 
@@ -155,10 +175,35 @@ An Azure AD organization instance that represents a single organization and cont
 **Tenant ID**  
 A unique identifier for an Azure AD tenant, used for authentication and authorization.
 
+## S
+
+**Schema Name**  
+The technical name of an entity or attribute used in code and API calls. Often different from the display name shown to users.
+
+**Solution**  
+A container for customizations in Dataverse that groups related components together for deployment and management.
+
+**Solution Component**  
+Individual pieces that make up a Dataverse solution, including entities, attributes, web resources, and other customizations.
+
+**Source Environment**  
+In dual-environment configuration, the Dataverse environment that is scanned for metadata and solution information. Configured in the DATAVERSE section of appsettings.json.
+
+**Storage Environment**  
+In dual-environment configuration, the Dataverse environment where the generated data dictionary documentation is stored. Configured in the DATADICTIONARY section of appsettings.json.
+
+## T
+
+**Tenant ID**  
+A unique identifier for an Azure Active Directory tenant, required for authentication to Dataverse environments.
+
 ## U
 
 **Unified Interface**  
 The modern user experience framework for Dataverse applications, providing consistent and responsive interfaces across devices.
+
+**User Context**  
+The security context under which DVDataDictionary operates, determining what metadata and data can be accessed.
 
 ## V
 
@@ -169,6 +214,9 @@ A field property that determines whether users can see a field on forms. Can be 
 
 **Web Resource**  
 Files uploaded to Dataverse that can be used in applications, including JavaScript files, CSS stylesheets, images, and HTML pages.
+
+**Web Resource Analysis**  
+The process of examining web resources, particularly JavaScript files, to understand their impact on form behavior and field modifications.
 
 **Workflow**  
 An automated business process in Dataverse that can perform actions based on specified conditions and triggers.
