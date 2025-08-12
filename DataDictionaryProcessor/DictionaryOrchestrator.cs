@@ -34,8 +34,8 @@ namespace DataDictionaryProcessor
 
         public DictionaryOrchestrator(string connectionStringSaver,string connectionStringScanner)
         {
-            DictionaryOrchestrator.LogEvent("Scanning : " + connectionStringScanner.ToString());
-            DictionaryOrchestrator.LogEvent("Saving : " + connectionStringSaver.ToString());
+            //DictionaryOrchestrator.LogEvent("Scanning : " + connectionStringScanner.
+            //DictionaryOrchestrator.LogEvent("Saving : " + connectionStringSaver.ToString());
 
             _serviceClientScanner = new CrmServiceClient(connectionStringScanner);
             if (_serviceClientScanner.IsReady)
