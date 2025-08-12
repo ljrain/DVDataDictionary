@@ -54,14 +54,14 @@ The DataDictionaryProcessor follows several key architectural principles:
                           ▼
 ┌─────────────────┬───────────────────┬─────────────────────────────┐
 │   DvCollector   │    DvProcessor    │         DvSaver           │
-│  (Collection)   │   (Processing)    │       (Persistence)       │
-│                 │                   │    [Future Enhancement]   │
+│  (Collection)   │   (Processing)    │      (Persistence)        │
+│                 │                   │                           │
 └─────────────────┴───────────────────┴─────────────────────────────┘
          │                   │                        │
          ▼                   ▼                        ▼
 ┌─────────────────┬───────────────────┬─────────────────────────────┐
-│ Dataverse API   │ JavaScript Parser │    Dataverse Storage      │
-│   Metadata      │   Pattern Matcher │      (Future)             │
+│ Source Dataverse│ JavaScript Parser │    Storage Dataverse      │
+│ API Metadata    │   Pattern Matcher │      API Storage          │
 │   Collection    │   Correlation     │                           │
 └─────────────────┴───────────────────┴─────────────────────────────┘
 ```
@@ -100,7 +100,7 @@ Input (appsettings.json) → Authentication → Solution Selection
                                                     ▼
                           ┌─────────────────────────────────────┐
                           │         DvSaver.SaveToDataverse()   │
-                          │              [Future Feature]       │
+                          │        (Storage & Persistence)      │
                           └─────────────────────────────────────┘
 ```
 
@@ -257,17 +257,29 @@ Configuration Loading → Authentication → Solution Discovery
 **Purpose**: Application entry point and configuration management
 
 **Key Responsibilities**:
-- Loads configuration from `appsettings.json`
-- Constructs Dataverse connection string
-- Initializes and executes the DictionaryOrchestrator
+- Loads dual-environment configuration from `appsettings.json`
+- Constructs separate Dataverse connection strings for source and storage environments
+- Initializes and executes the DictionaryOrchestrator with both connections
 - Handles top-level exception management
 
-**Configuration Structure**:{
-  "CRMURL": "https://your-environment.crm.dynamics.com",
-  "CLIENTID": "your-client-id",
-  "CLIENTSECRET": "your-client-secret",
-  "TENANTID": "your-tenant-id"
+**Configuration Structure**:
+```json
+{
+  "DATADICTIONARY": {
+    "CRMURL": "https://docs-environment.crm.dynamics.com",
+    "CLIENTID": "your-client-id",
+    "CLIENTSECRET": "your-client-secret",
+    "TENANTID": "your-tenant-id"
+  },
+  "DATAVERSE": {
+    "CRMURL": "https://source-environment.crm.dynamics.com",
+    "CLIENTID": "your-client-id", 
+    "CLIENTSECRET": "your-client-secret",
+    "TENANTID": "your-tenant-id",
+    "SOLUTIONS": ["Solution1", "Solution2"]
+  }
 }
+```
 **Key Methods**:
 - `Main(string[] args)`: Application entry point
 
@@ -284,7 +296,7 @@ Configuration Loading → Authentication → Solution Discovery
 1. Collect all metadata and store in models
 2. Parse JavaScript files and extract relevant data
 3. Correlate metadata with parsed data
-4. Save to Dataverse (future enhancement)
+4. Save comprehensive documentation to Dataverse storage environment
 
 **Key Methods**:
 - `BuildDataDictionary()`: Main orchestration method
@@ -413,11 +425,20 @@ The Models directory contains the data structures that represent the data dictio
 
 #### appsettings.json
 
-Contains Dataverse connection parameters:
-- **CRMURL**: Dataverse environment URL
-- **CLIENTID**: Azure AD application client ID
-- **CLIENTSECRET**: Azure AD application client secret
-- **TENANTID**: Azure AD tenant ID
+Contains dual-environment Dataverse connection parameters:
+
+**DATADICTIONARY Section** (Storage Environment):
+- **CRMURL**: Documentation storage environment URL
+- **CLIENTID**: Azure AD application client ID for storage
+- **CLIENTSECRET**: Azure AD application client secret for storage
+- **TENANTID**: Azure AD tenant ID for storage environment
+
+**DATAVERSE Section** (Source Environment):
+- **CRMURL**: Source environment URL to scan
+- **CLIENTID**: Azure AD application client ID for source
+- **CLIENTSECRET**: Azure AD application client secret for source  
+- **TENANTID**: Azure AD tenant ID for source environment
+- **SOLUTIONS**: Array of solution names to analyze
 
 #### App.config
 

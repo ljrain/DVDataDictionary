@@ -223,30 +223,48 @@ Collect the following information:
 
 #### Configure Connection Settings
 
-Edit the `appsettings.json` file with your environment details:
+DVDataDictionary supports dual-environment operation, allowing you to scan one environment and store documentation in another. Edit the `appsettings.json` file with your environment details:
 
 ```json
 {
-  "CRMURL": "https://yourorg.crm.dynamics.com",
-  "CLIENTID": "your-application-client-id",
-  "CLIENTSECRET": "your-client-secret-value", 
-  "TENANTID": "your-azure-ad-tenant-id",
-  "SOLUTIONS": [
-    "YourSolutionName1",
-    "YourSolutionName2"
-  ]
+  "DATADICTIONARY": {
+    "CRMURL": "https://docs-environment.crm.dynamics.com",
+    "CLIENTID": "your-application-client-id",
+    "CLIENTSECRET": "your-client-secret-value",
+    "TENANTID": "your-azure-ad-tenant-id"
+  },
+  "DATAVERSE": {
+    "CRMURL": "https://source-environment.crm.dynamics.com",
+    "CLIENTID": "your-application-client-id",
+    "CLIENTSECRET": "your-client-secret-value", 
+    "TENANTID": "your-azure-ad-tenant-id",
+    "SOLUTIONS": [
+      "YourSolutionName1",
+      "YourSolutionName2"
+    ]
+  }
 }
 ```
 
+#### Configuration Scenarios
+
+**Single Environment**: Use the same environment for both scanning and storage by setting identical values in both sections.
+
+**Dual Environment**: Scan a development/test environment while storing documentation in a production or dedicated documentation environment.
+
 #### Configuration Parameter Details
 
-| Parameter | Description | Example | Required |
-|-----------|-------------|---------|----------|
-| `CRMURL` | Your Dataverse environment URL | `https://contoso.crm.dynamics.com` | Yes |
-| `CLIENTID` | Azure AD application client ID | `12345678-1234-5678-9012-123456789012` | Yes |
-| `CLIENTSECRET` | Azure AD application client secret | `AbC123...` | Yes |
-| `TENANTID` | Azure AD tenant ID | `87654321-4321-8765-4321-210987654321` | Yes |
-| `SOLUTIONS` | Array of solution unique names to analyze | `["solution1", "solution2"]` | Yes |
+| Section | Parameter | Description | Example | Required |
+|---------|-----------|-------------|---------|----------|
+| **DATADICTIONARY** | `CRMURL` | Documentation storage environment URL | `https://docs.crm.dynamics.com` | Yes |
+| | `CLIENTID` | Azure AD application client ID for storage | `12345678-1234-5678-9012-123456789012` | Yes |
+| | `CLIENTSECRET` | Azure AD application client secret for storage | `AbC123...` | Yes |
+| | `TENANTID` | Azure AD tenant ID for storage environment | `87654321-4321-8765-4321-210987654321` | Yes |
+| **DATAVERSE** | `CRMURL` | Source environment URL to scan | `https://dev.crm.dynamics.com` | Yes |
+| | `CLIENTID` | Azure AD application client ID for source | `12345678-1234-5678-9012-123456789012` | Yes |
+| | `CLIENTSECRET` | Azure AD application client secret for source | `AbC123...` | Yes |
+| | `TENANTID` | Azure AD tenant ID for source environment | `87654321-4321-8765-4321-210987654321` | Yes |
+| | `SOLUTIONS` | Array of solution unique names to analyze | `["solution1", "solution2"]` | Yes |
 
 #### Security Best Practices
 
@@ -295,10 +313,11 @@ The application will display:
 
 #### Connection Phase
 ```
-Connected to Dynamics CRM!
+Connected to source environment: https://dev-environment.crm.dynamics.com
+Connected to storage environment: https://docs-environment.crm.dynamics.com
 Building Data Dictionary...
 ```
-**What it means**: Successfully connected to your Dataverse environment and beginning analysis.
+**What it means**: Successfully connected to both your source and storage Dataverse environments and beginning analysis.
 
 #### Data Collection Phase
 ```
@@ -318,11 +337,12 @@ Processing JavaScript took 8.45 seconds.
 
 #### Data Storage Phase
 ```
-Saving to Dataverse...
-Data saved to Dataverse in 5.67 seconds.
+Saving to storage environment...
+Data dictionary saved to https://docs-environment.crm.dynamics.com
+Data saved in 5.67 seconds.
 Data Dictionary built successfully!
 ```
-**What it means**: Storing all analyzed data back to Dataverse for access and reporting.
+**What it means**: Storing all analyzed data to the designated storage environment for centralized access and reporting.
 
 ### Regular Usage Patterns
 

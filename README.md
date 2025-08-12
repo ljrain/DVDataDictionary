@@ -36,14 +36,14 @@ DVDataDictionary consists of two primary components designed for different deplo
 - **Use Case**: Scheduled documentation updates, development environment analysis, comprehensive reporting
 - **Output**: Centralized storage in Dataverse with detailed console reporting
 
-### DataDictionary Plugin (future)
+### DataDictionary Plugin
 **Plugin and Integration Framework**
 - **Purpose**: In-environment execution and API integration
 - **Deployment**: Dataverse plugin registration or library reference
 - **Use Case**: Real-time processing, embedded workflows, custom integration scenarios
 - **Output**: Direct Dataverse storage with flexible execution patterns
 
-*For most organizations, **DataDictionary Plugin** provides the optimal balance of functionality, ease of deployment, and comprehensive output.*
+*For most organizations, **DataDictionaryProcessor** provides the optimal balance of functionality, ease of deployment, and comprehensive output.*
 
 ## Core Capabilities
 
@@ -67,14 +67,15 @@ DVDataDictionary consists of two primary components designed for different deplo
 
 ## Multi-Environment Scanning and Storage
 
-DVDataDictionary now supports scanning one Dataverse environment and storing the generated data dictionary in a separate environment. This is ideal for organizations that want to centralize documentation or keep production and documentation environments separate.
+DVDataDictionary supports scanning one Dataverse environment and storing the generated data dictionary in a separate environment. This is ideal for organizations that want to centralize documentation or keep production and documentation environments separate.
 
-- **Scan Environment**: Defined in the `DATAVERSE` section.
-- **Storage Environment**: Defined in the `DATADICTIONARY` section.
+- **Scan Environment**: Defined in the `DATAVERSE` section of `appsettings.json`
+- **Storage Environment**: Defined in the `DATADICTIONARY` section of `appsettings.json`
 
-This architecture supports advanced scenarios such as:
-- Scanning development or test environments while storing documentation in a production or dedicated documentation instance.
-- Centralizing documentation for compliance, governance, or reporting purposes.
+This dual-environment architecture supports advanced scenarios such as:
+- Scanning development or test environments while storing documentation in a production or dedicated documentation instance
+- Centralizing documentation across multiple environments for compliance, governance, or reporting purposes
+- Maintaining separation between operational environments and documentation repositories
 
 ## Quick Start Guide
 
@@ -90,27 +91,27 @@ This architecture supports advanced scenarios such as:
    - Extract to your preferred location
    - Navigate to DataDictionaryProcessor folder
 2. **Configure Connection**
-   Update `appsettings.json` with your environment details. Two configuration sections are supported:
+   Update `appsettings.json` with your environment details. The configuration supports two sections:
 
-   - **DATADICTIONARY**: The environment where the generated data dictionary will be stored.
-   - **DATAVERSE**: The environment to be scanned for metadata, solutions, and customizations.
+   - **DATADICTIONARY**: The environment where the generated data dictionary will be stored
+   - **DATAVERSE**: The environment to be scanned for metadata, solutions, and customizations
 
-   Example:
+   Example configuration:
 
    ```json
    {
+     "DATADICTIONARY": {
+       "CRMURL": "https://docs-environment.crm.dynamics.com",
+       "CLIENTID": "your-client-id",
+       "CLIENTSECRET": "your-client-secret", 
+       "TENANTID": "your-tenant-id"
+     },
      "DATAVERSE": {
        "CRMURL": "https://dev-environment.crm.dynamics.com",
        "CLIENTID": "your-client-id",
        "CLIENTSECRET": "your-client-secret",
        "TENANTID": "your-tenant-id",
        "SOLUTIONS": ["CustomSolution1", "CustomSolution2"]
-     },
-     "DATADICTIONARY": {
-       "CRMURL": "https://docs-environment.crm.dynamics.com",
-       "CLIENTID": "your-client-id",
-       "CLIENTSECRET": "your-client-secret",
-       "TENANTID": "your-tenant-id"
      }
    }
    ```
