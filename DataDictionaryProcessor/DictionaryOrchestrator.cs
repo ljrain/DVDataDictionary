@@ -69,7 +69,7 @@ namespace DataDictionaryProcessor
             collector.CollectData();
             var elapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2");
             DictionaryOrchestrator.LogEvent($"Data collection took {elapsedTime} seconds.",ConsoleColor.Red );
-
+            
             startTime = DateTime.Now;
             DvProcessor processor = new DvProcessor();
             processor.AllowedLogicalNames = collector.AllowedLogicalNames;
@@ -83,7 +83,7 @@ namespace DataDictionaryProcessor
 
             startTime = DateTime.Now;
             // Save to Dataverse
-            DvSaver saver = new DvSaver(_serviceClientSaver, processor.DdModel);
+            DvSaver saver = new DvSaver(_serviceClientSaver, processor.DdModel, collector._ddSolutions);
             saver.SaveToDataverse();
             DateTime saveStartTime = DateTime.Now;
             DictionaryOrchestrator.LogEvent($"Data saved to Dataverse in {DateTime.Now.Subtract(saveStartTime).TotalSeconds.ToString("F2")} seconds.", ConsoleColor.Red);

@@ -13,10 +13,11 @@ namespace DataDictionaryProcessor
     {
 
 
-        public DvSaver(CrmServiceClient serviceClient, DataDictionary.Models.DataDictionary ddModel)
+        public DvSaver(CrmServiceClient serviceClient, DataDictionary.Models.DataDictionary ddModel, Dictionary<string, DataDictionarySolution> solutions)
         {
             _serviceClient = serviceClient;
             _ddModel = ddModel;
+            _ddSolutions = solutions;
         }
 
 
@@ -24,7 +25,7 @@ namespace DataDictionaryProcessor
 
         private CrmServiceClient _serviceClient;
         DataDictionary.Models.DataDictionary _ddModel = new DataDictionary.Models.DataDictionary();
-
+        public Dictionary<string, DataDictionarySolution> _ddSolutions = new Dictionary<string, DataDictionarySolution>();
 
         #endregion
 
@@ -66,18 +67,59 @@ namespace DataDictionaryProcessor
         }
 
 
-        #region Private Methods
-
         public void SaveToDataverse()
         {
+            int tablesAdded = 0;
+            int columnsAdded = 0; 
+
+            Console.WriteLine("Make sure all fields are saved!");
+            Console.WriteLine("Field Count : " + _ddSolutions.Count);
+
+            // Fix 1: Use correct type name 'DataDictionaryAttributeMetadata'
+            foreach (DataDictionaryAttributeMetadata obj in _ddSolutions["Default"].AttributeMetadata)
+            {
+                var key = $"{obj.Table}.{obj.ColumnSchema}";
+                if (_ddModel.Entities.ContainsKey(obj.Table))
+                {
+                    Console.WriteLine("Found table.");
+                    if (AttributeExists(_ddModel.Entities[obj.Table], obj.ColumnSchema))
+                    {
+                         // Console.WriteLine("Column Found");
+                         // do nothing
+                    }
+                    else
+                    {
+
+                        DataDictionaryAttribute ddAttr = new DataDictionaryAttribute();
+                        ddAttr.AttributeName = obj.ColumnSchema;
+                        _ddModel.Entities[obj.Table].AddAttribute(ddAttr);
+                        columnsAdded++;
+                    }
+                    
+
+                }
+                else
+                {
+                    DataDictionaryEntity table = new DataDictionaryEntity();
+                    table.BaseTableName = obj.Table;
+                    DataDictionaryAttribute attr = new DataDictionaryAttribute();
+                    attr.AttributeName = obj.ColumnLogical;
+
+                    _ddModel.Entities.Add(obj.Table,table);
+                    tablesAdded++;
+
+                }
+
+                
+
+            }
 
             // Save any web resources first so we can relate to them
-            //foreach (var resource in _ddModel.WebResources)
-            //{
-                //DictionaryOrchestrator.LogEvent($"Saving web resource: {resource.Value}");
-                SaveJavascriptToDataverse();
+            SaveJavascriptToDataverse();
 
-            //}
+            int totalAttributes = 0;
+            // Fix 3: Remove unused variable 'totalAttributesSaved'
+            // int totalAttributesSaved = 0;
 
             // Use ExecuteMultipleRequest for batch saving to Dataverse
             const int batchSize = 1000;
@@ -89,17 +131,17 @@ namespace DataDictionaryProcessor
             {
                 foreach (var attr in entity.Value.Attributes)
                 {
+                    totalAttributes++;
+
                     // Construct the alternate key value
                     var altKey = $"{attr.Metadata.Table}.{attr.Metadata.ColumnSchema}";
                     if (string.IsNullOrWhiteSpace(altKey))
                     {
-                        //DictionaryOrchestrator.LogEvent("Skipping record with null/empty alternate key.");
                         continue;
                     }
                     // Check for duplicate alternate key in the current batch
                     if (!seenAltKeys.Add(altKey))
                     {
-                        //DictionaryOrchestrator.LogEvent($"Duplicate alternate key detected in batch: '{altKey}'. Skipping this record.");
                         continue;
                     }
 
@@ -215,6 +257,10 @@ namespace DataDictionaryProcessor
             {
                 ExecuteBatch(requests);
             }
+            Console.WriteLine($"Total Tables Added: {tablesAdded}");
+            Console.WriteLine($"Total Columns Added: {columnsAdded}");
+            DictionaryOrchestrator.LogEvent($"Total attributes processed: {totalAttributes}");
+
         }
 
         private void ExecuteBatch(List<OrganizationRequest> requests)
@@ -512,7 +558,24 @@ namespace DataDictionaryProcessor
                 return base64;
             }
         }
-        #endregion
+        /// <summary>
+        /// Checks if an attribute with the specified column logical name exists in the attributes collection of a DataDictionaryEntity.
+        /// </summary>
+        /// <param name="entity">The DataDictionaryEntity to check.</param>
+        /// <param name="columnLogicalName">The column logical name to search for.</param>
+        /// <returns>True if the attribute exists; otherwise, false.</returns>
+        private bool AttributeExists(DataDictionaryEntity entity, string columnLogicalName)
+        {
+            if (entity == null || string.IsNullOrWhiteSpace(columnLogicalName) || entity.Attributes == null)
+                return false;
+
+            foreach (var attr in entity.Attributes)
+            {
+                if (string.Equals(attr.AttributeName, columnLogicalName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
     }
 }
 

@@ -35,7 +35,7 @@ namespace DataDictionaryProcessor
         #region "Private Fields"
 
         private CrmServiceClient _serviceClient;
-        private Dictionary<string, DataDictionarySolution> _ddSolutions = new Dictionary<string, DataDictionarySolution>();
+        public Dictionary<string, DataDictionarySolution> _ddSolutions = new Dictionary<string, DataDictionarySolution>();
         private List<string> _allowedLogicalNames = new List<string>();
         private Dictionary<string, List<string>> _allowedtableAttributes = new Dictionary<string, List<string>>();
         private DvJavaScriptParser _dvJavaScriptParser;
@@ -473,8 +473,10 @@ namespace DataDictionaryProcessor
                     UniqueName = "Default"
                 });
             }
+			int allColumnCount = 0;
+			int includedColumnCount = 0;
 
-            try
+			try
             {
                 Console.Write("Retrieving Attribute Metadata .");
                 request = new RetrieveAllEntitiesRequest()
@@ -494,13 +496,17 @@ namespace DataDictionaryProcessor
                     .OrderBy(e => e.LogicalName)
                     .ToList();
 
+
+
                 if (results != null)
                 {
                     foreach (EntityMetadata entity in results)
                     {
                         foreach (AttributeMetadata attribute in entity.Attributes)
                         {
-                            DataDictionaryAttributeMetadata ddMeta = new DataDictionaryAttributeMetadata();
+                            allColumnCount++;
+
+							DataDictionaryAttributeMetadata ddMeta = new DataDictionaryAttributeMetadata();
                             ddMeta.Table = entity.LogicalName;
                             ddMeta.ColumnDisplay = (attribute.DisplayName.UserLocalizedLabel == null ? String.Empty : attribute.DisplayName.UserLocalizedLabel.Label);
                             ddMeta.ColumnLogical = attribute.LogicalName;
@@ -600,7 +606,8 @@ namespace DataDictionaryProcessor
                             }
 
                             _ddSolutions["Default"].AttributeMetadata.Add(ddMeta);
-                        }
+                            includedColumnCount++;
+						}
                     }
                 }
                 else
@@ -618,7 +625,11 @@ namespace DataDictionaryProcessor
                 PicklistAM = null;
                 response = null;
                 request = null;
-            }
+                Console.WriteLine("Included Column Count : " + includedColumnCount);
+				Console.WriteLine("All Column Count : " + allColumnCount);
+				Console.WriteLine(" Done.");
+
+			}
         }
 
         /// <summary>
