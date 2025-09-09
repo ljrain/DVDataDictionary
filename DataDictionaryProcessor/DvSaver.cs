@@ -90,8 +90,10 @@ namespace DataDictionaryProcessor
                     else
                     {
 
+                        // When adding a new attribute, set Metadata
                         DataDictionaryAttribute ddAttr = new DataDictionaryAttribute();
                         ddAttr.AttributeName = obj.ColumnSchema;
+                        ddAttr.Metadata = obj; // <-- This is critical
                         _ddModel.Entities[obj.Table].AddAttribute(ddAttr);
                         columnsAdded++;
                     }
@@ -104,8 +106,9 @@ namespace DataDictionaryProcessor
                     table.BaseTableName = obj.Table;
                     DataDictionaryAttribute attr = new DataDictionaryAttribute();
                     attr.AttributeName = obj.ColumnLogical;
-
-                    _ddModel.Entities.Add(obj.Table,table);
+                    attr.Metadata = obj; // <-- This is critical
+                    table.AddAttribute(attr);
+                    _ddModel.Entities.Add(obj.Table, table);
                     tablesAdded++;
 
                 }
@@ -116,6 +119,7 @@ namespace DataDictionaryProcessor
 
             // Save any web resources first so we can relate to them
             SaveJavascriptToDataverse();
+            int recsSkipped = 0;
 
             int totalAttributes = 0;
             // Fix 3: Remove unused variable 'totalAttributesSaved'
@@ -137,11 +141,13 @@ namespace DataDictionaryProcessor
                     var altKey = $"{attr.Metadata.Table}.{attr.Metadata.ColumnSchema}";
                     if (string.IsNullOrWhiteSpace(altKey))
                     {
+                        recsSkipped++;
                         continue;
                     }
                     // Check for duplicate alternate key in the current batch
                     if (!seenAltKeys.Add(altKey))
                     {
+                        recsSkipped++;
                         continue;
                     }
 
@@ -259,6 +265,7 @@ namespace DataDictionaryProcessor
             }
             Console.WriteLine($"Total Tables Added: {tablesAdded}");
             Console.WriteLine($"Total Columns Added: {columnsAdded}");
+            Console.WriteLine($"Total Records Skipped: {recsSkipped}");
             DictionaryOrchestrator.LogEvent($"Total attributes processed: {totalAttributes}");
 
         }
