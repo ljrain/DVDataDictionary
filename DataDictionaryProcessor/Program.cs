@@ -9,7 +9,7 @@ namespace DataDictionaryProcessor
         static void Main(string[] args)
         {
             // Pseudocode:
-            // 1. Load configuration from appSettings.json.
+            // 1. Load configuration from appSettings.json. 
             // 2. Read CRMURL, CLIENTID, CLIENTSECRET, TENANTID from DATADICTIONARY section.
             // 3. Read SOLUTIONS array from DATAVERSE section.
             // 4. Use these values as before.
