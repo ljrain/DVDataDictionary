@@ -267,30 +267,53 @@ namespace DataDictionaryProcessor
         /// <param name="ddSolution">The solution to retrieve components for.</param>
         private void GetComponentsInSolution(DataDictionarySolution ddSolution)
         {
-            var componentQuery = new QueryExpression("solutioncomponent")
-            {
-                ColumnSet = new ColumnSet("objectid", "componenttype", "ismetadata", "rootcomponentbehavior", "rootsolutioncomponentid", "solutionid"),
-                Criteria = new FilterExpression
+            // Need to add PAGING due to the RetrieveMultiple query using the Dataverse SDK is subject to a default limit of 5,000 records per query.
+
+            int pageNumber = 1;
+            string pagingCookie = null;
+            bool moreRecords = true;
+
+            while (moreRecords)
+            {   // Begin while
+
+                var componentQuery = new QueryExpression("solutioncomponent")
                 {
-                    Conditions =
+                    ColumnSet = new ColumnSet("objectid", "componenttype", "ismetadata", "rootcomponentbehavior", "rootsolutioncomponentid", "solutionid"),
+                    PageInfo = new PagingInfo
+                    {
+                        Count = 5000,
+                        PageNumber = pageNumber,
+                        PagingCookie = pagingCookie
+                    },
+                    Criteria = new FilterExpression
+                    {
+                        Conditions =
                     {
                         new ConditionExpression("solutionid", ConditionOperator.Equal, new Guid(ddSolution.SolutionId)),
                     }
-                }
-            };
-
-            var components = _serviceClient.RetrieveMultiple(componentQuery);
-            foreach (var component in components.Entities)
-            {
-                DataDictionarySolutionComponent ddComponent = new DataDictionarySolutionComponent
-                {
-                    ObjectId = component.GetAttributeValue<Guid>("objectid"),
-                    ComponentType = component.GetAttributeValue<OptionSetValue>("componenttype")?.Value ?? 0,
-                    IsMetadata = component.GetAttributeValue<bool>("ismetadata"),
-                    RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
+                    }
                 };
-                ddSolution.AddComponent(ddComponent);
-            }
+
+                var components = _serviceClient.RetrieveMultiple(componentQuery);
+                foreach (var component in components.Entities)
+                {
+                    DataDictionarySolutionComponent ddComponent = new DataDictionarySolutionComponent
+                    {
+                        ObjectId = component.GetAttributeValue<Guid>("objectid"),
+                        ComponentType = component.GetAttributeValue<OptionSetValue>("componenttype")?.Value ?? 0,
+                        IsMetadata = component.GetAttributeValue<bool>("ismetadata"),
+                        RootSolutionComponentId = component.GetAttributeValue<Guid>("rootsolutioncomponentid")
+                    };
+                    ddSolution.AddComponent(ddComponent);
+                }
+
+                moreRecords = components.MoreRecords;
+                if (moreRecords)
+                {
+                    pageNumber++;
+                    pagingCookie = components.PagingCookie;
+                }
+            }   // End while
         }
 
         /// <summary>
