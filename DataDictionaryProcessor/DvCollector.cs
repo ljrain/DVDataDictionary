@@ -346,41 +346,113 @@ namespace DataDictionaryProcessor
             if (objectIds == null || objectIds.Length == 0)
                 return new List<Entity>();
 
-            var query = new QueryExpression("webresource")
-            {
-                ColumnSet = new ColumnSet(
-                    "webresourceid",
-                    "webresourceidunique",
-                    "webresourcetype",
-                    "dependencyxml",
-                    "description",
-                    "displayname",
-                    "name",
-                    "content",
-                    "createdon",
-                    "modifiedon"
-                ),
-                Criteria = new FilterExpression
-                {
-                    FilterOperator = LogicalOperator.And
-                }
-            };
-
+            // Parse and dedupe GUIDs
             var guidList = objectIds
-                .Where(id => Guid.TryParse(id, out _))
-                .Select(id => new Guid(id))
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id =>
+                {
+                    Guid g;
+                    return Guid.TryParse(id, out g) ? (Guid?)g : null;
+                })
+                .Where(g => g.HasValue)
+                .Select(g => g.Value)
+                .Distinct()
                 .ToList();
 
             if (guidList.Count == 0)
                 return new List<Entity>();
 
-            query.Criteria.AddCondition(new ConditionExpression("webresourceid", ConditionOperator.In, guidList.Cast<object>().ToArray()));
-            // Only include web resources of type JavaScript (type id = 3)
-            query.Criteria.AddCondition(new ConditionExpression("webresourcetype", ConditionOperator.Equal, 3));
+            var allEntities = new List<Entity>();
+            var seen = new HashSet<Guid>();
 
-            var results = _serviceClient.RetrieveMultiple(query);
+            // Conservative batch size to avoid IN-clause / query length limits.
+            const int batchSize = 2000;
 
-            return results.Entities.ToList();
+            for (int offset = 0; offset < guidList.Count; offset += batchSize)
+            {
+                var batch = guidList.Skip(offset).Take(batchSize).ToList();
+
+                // Paging for this batch
+                int pageNumber = 1;
+                string pagingCookie = null;
+                bool moreRecords = true;
+
+                while (moreRecords)
+                {
+                    try
+                    {
+                        var query = new QueryExpression("webresource")
+                        {
+                            ColumnSet = new ColumnSet(
+                                "webresourceid",
+                                "webresourceidunique",
+                                "webresourcetype",
+                                "dependencyxml",
+                                "description",
+                                "displayname",
+                                "name",
+                                "content",
+                                "createdon",
+                                "modifiedon"
+                            ),
+                            PageInfo = new PagingInfo
+                            {
+                                Count = 5000, // max records per page
+                                PageNumber = pageNumber,
+                                PagingCookie = pagingCookie
+                            },
+                            Criteria = new FilterExpression
+                            {
+                                FilterOperator = LogicalOperator.And
+                            }
+                        };
+
+                        // Add IN filter for this batch
+                        query.Criteria.AddCondition(new ConditionExpression("webresourceid", ConditionOperator.In, batch.Cast<object>().ToArray()));
+                        // Only include web resources of type JavaScript (type id = 3)
+                        query.Criteria.AddCondition(new ConditionExpression("webresourcetype", ConditionOperator.Equal, 3));
+
+                        var results = _serviceClient.RetrieveMultiple(query);
+
+                        if (results?.Entities != null && results.Entities.Count > 0)
+                        {
+                            foreach (var e in results.Entities)
+                            {
+                                var id = e.GetAttributeValue<Guid>("webresourceid");
+                                if (!seen.Contains(id))
+                                {
+                                    seen.Add(id);
+                                    allEntities.Add(e);
+                                }
+                            }
+                        }
+
+                        moreRecords = results?.MoreRecords ?? false;
+                        if (moreRecords)
+                        {
+                            pageNumber++;
+                            pagingCookie = results.PagingCookie;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log and continue with next batch/page. Do not rethrow to allow partial results.
+                        // Assuming DictionaryOrchestrator.LogEvent exists in project
+                        try
+                        {
+                            DictionaryOrchestrator.LogEvent($"Error retrieving webresources for batch starting at {offset}: {ex.Message}");
+                        }
+                        catch
+                        {
+                            // swallow logging exceptions to avoid masking original error
+                        }
+                        // Break out of paging loop for this batch and continue to next batch
+                        moreRecords = false;
+                    }
+                }
+            }
+
+            return allEntities;
         }
 
         /// <summary>

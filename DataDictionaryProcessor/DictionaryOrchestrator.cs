@@ -85,10 +85,11 @@ namespace DataDictionaryProcessor
             // Save to Dataverse
             DvSaver saver = new DvSaver(_serviceClientSaver, processor.DdModel, collector._ddSolutions);
             saver.SaveToDataverse();
-            DateTime saveStartTime = DateTime.Now;
-            DictionaryOrchestrator.LogEvent($"Data saved to Dataverse in {DateTime.Now.Subtract(saveStartTime).TotalSeconds.ToString("F2")} seconds.", ConsoleColor.Red);
+            //DateTime saveStartTime = DateTime.Now;
+            DictionaryOrchestrator.LogEvent($"Data saved to Dataverse in {DateTime.Now.Subtract(startTime).TotalSeconds.ToString("F2")} seconds, approximately {DateTime.Now.Subtract(startTime).TotalMinutes.ToString("F2")} minutes.", ConsoleColor.Red);
 
             DictionaryOrchestrator.LogEvent("Data Dictionary built successfully!",ConsoleColor.Green);
+            Console.ReadLine();
         }
     }
 }

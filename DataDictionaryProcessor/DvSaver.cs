@@ -135,125 +135,132 @@ namespace DataDictionaryProcessor
             {
                 foreach (var attr in entity.Value.Attributes)
                 {
-                    totalAttributes++;
-
-                    // Construct the alternate key value
-                    var altKey = $"{attr.Metadata.Table}.{attr.Metadata.ColumnSchema}";
-                    if (string.IsNullOrWhiteSpace(altKey))
+                    try
                     {
-                        recsSkipped++;
-                        continue;
-                    }
-                    // Check for duplicate alternate key in the current batch
-                    if (!seenAltKeys.Add(altKey))
-                    {
-                        recsSkipped++;
-                        continue;
-                    }
+                        totalAttributes++;
 
-                    var newRec = new Entity("ljr_datadictionaryattributemetadata");
-                    newRec["ljr_datadictionaryattributemetadata1"] = altKey;
-                    newRec["ljr_table"] = attr.Metadata.Table;
-                    newRec["ljr_columndisplay"] = attr.Metadata.ColumnDisplay;
-                    newRec["ljr_columnlogical"] = attr.Metadata.ColumnLogical;
-                    newRec["ljr_columnschema"] = attr.Metadata.ColumnSchema;
-                    newRec["ljr_datatype"] = attr.Metadata.DataType;
-                    newRec["ljr_formuladefinition"] = attr.Metadata.FormulaDefinition;
-                    newRec["ljr_iscustom"] = attr.Metadata.IsCustom;
-                    newRec["ljr_auditenabled"] = attr.Metadata.AuditEnabled;
-                    newRec["ljr_iscalculated"] = attr.Metadata.IsCalculated;
-                    newRec["ljr_isformula"] = attr.Metadata.IsFormula;
-                    newRec["ljr_lookupto"] = attr.Metadata.LookupTo;
-                    newRec["ljr_metadatamodifiedon"] = attr.Metadata.ModifiedOn != DateTime.MinValue ? (object)attr.Metadata.ModifiedOn : null;
-                    newRec["ljr_attributeof"] = attr.Metadata.AttributeOf;
-                    newRec["ljr_attributetype"] = attr.Metadata.AttributeType;
-                    newRec["ljr_attributetypename"] = attr.Metadata.AttributeTypeName;
-                    newRec["ljr_autonumberformat"] = attr.Metadata.AutoNumberFormat;
-                    newRec["ljr_canbesecuredforcreate"] = attr.Metadata.CanBeSecuredForCreate ?? false;
-                    newRec["ljr_canbesecuredforread"] = attr.Metadata.CanBeSecuredForRead ?? false;
-                    newRec["ljr_canbesecuredforupdate"] = attr.Metadata.CanBeSecuredForUpdate ?? false;
-                    newRec["ljr_canmodifiedadditionalsettings"] = attr.Metadata.CanModifiedAdditionalSettings ?? false;
-                    newRec["ljr_columnnumber"] = attr.Metadata.ColumnNumber ?? 0;
-                    newRec["ljr_deprecatedversion"] = attr.Metadata.DeprecatedVersion;
-                    newRec["ljr_displayname"] = attr.Metadata.DisplayName;
-                    newRec["ljr_entitylogicalname"] = attr.Metadata.EntityLogicalName;
-                    newRec["ljr_externalname"] = attr.Metadata.ExternalName;
-                    newRec["ljr_haschanged"] = attr.Metadata.HasChanged ?? false;
-                    newRec["ljr_inheritsfrom"] = attr.Metadata.InheritsFrom;
-                    newRec["ljr_introducedversion"] = attr.Metadata.IntroducedVersion;
-                    newRec["ljr_isauditenabled"] = attr.Metadata.IsAuditEnabled ?? false;
-                    newRec["ljr_metadatacreatedon"] = attr.Metadata.CreatedOn != DateTime.MinValue ? (object)attr.Metadata.CreatedOn : null;
-
-                    if (attr.Metadata.MaxValue != null)
-                        newRec["ljr_maxvalue"] = attr.Metadata.MaxValue;
-                    if (attr.Metadata.MinValue != null)
-                        newRec["ljr_minvalue"] = attr.Metadata.MinValue;
-                    if (attr.Metadata.Precision != null)
-                        newRec["ljr_precision"] = attr.Metadata.Precision;
-                    if (attr.Metadata.MaxLength != null)
-                        newRec["ljr_maxlength"] = attr.Metadata.MaxLength;
-
-                    if (attr.Metadata.OptionSet != null)
-                        newRec["ljr_optionset"] = attr.Metadata.OptionSet;
-                    if (attr.Metadata.Value != null)
-                        newRec["ljr_value"] = attr.Metadata.Value;
-
-                    newRec["ljr_description"] = attr.Metadata.Description;
-                    newRec["ljr_langcode"] = attr.Metadata.LangCode;
-
-                    newRec["ljr_ishiddenbyscript"] = attr.Metadata.IsHiddenByScript ?? false;
-                    newRec["ljr_isrequiredbyscript"] = attr.Metadata.IsRequiredByScript ?? false;
-                    newRec["ljr_hasdefaultvaluebyscript"] = attr.Metadata.HasDefaultValueByScript ?? false;
-                    if (!string.IsNullOrWhiteSpace(attr.Metadata.ScriptDefaultValue))
-                        newRec["ljr_scriptdefaultvalue"] = attr.Metadata.ScriptDefaultValue;
-                    if (!string.IsNullOrWhiteSpace(attr.Metadata.ModifyingWebResources))
-                    {
-                        newRec["ljr_modifyingwebresource"] = attr.Metadata.ModifyingWebResources;
-                        Guid webresourceId = _ddModel.WebResources[attr.Metadata.ModifyingWebResources].WebResourceId;
-                        newRec["ljr_webresource"] = new EntityReference("ljr_webresource", webresourceId);
-                    }
-                    // --- Check if record exists in Dataverse by alternate key ---
-                    bool exists = false;
-                    Guid existingId = Guid.Empty;
-
-                    // Query by alternate key (ljr_datadictionaryattributemetadata1)
-                    var query = new QueryExpression("ljr_datadictionaryattributemetadata")
-                    {
-                        ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
-                        Criteria = new FilterExpression
+                        // Construct the alternate key value
+                        var altKey = $"{attr.Metadata.Table}.{attr.Metadata.ColumnSchema}";
+                        if (string.IsNullOrWhiteSpace(altKey))
                         {
-                            Conditions =
+                            recsSkipped++;
+                            continue;
+                        }
+                        // Check for duplicate alternate key in the current batch
+                        if (!seenAltKeys.Add(altKey))
+                        {
+                            recsSkipped++;
+                            continue;
+                        }
+
+                        var newRec = new Entity("ljr_datadictionaryattributemetadata");
+                        newRec["ljr_datadictionaryattributemetadata1"] = altKey;
+                        newRec["ljr_table"] = attr.Metadata.Table;
+                        newRec["ljr_columndisplay"] = attr.Metadata.ColumnDisplay;
+                        newRec["ljr_columnlogical"] = attr.Metadata.ColumnLogical;
+                        newRec["ljr_columnschema"] = attr.Metadata.ColumnSchema;
+                        newRec["ljr_datatype"] = attr.Metadata.DataType;
+                        newRec["ljr_formuladefinition"] = attr.Metadata.FormulaDefinition;
+                        newRec["ljr_iscustom"] = attr.Metadata.IsCustom;
+                        newRec["ljr_auditenabled"] = attr.Metadata.AuditEnabled;
+                        newRec["ljr_iscalculated"] = attr.Metadata.IsCalculated;
+                        newRec["ljr_isformula"] = attr.Metadata.IsFormula;
+                        newRec["ljr_lookupto"] = attr.Metadata.LookupTo;
+                        newRec["ljr_metadatamodifiedon"] = attr.Metadata.ModifiedOn != DateTime.MinValue ? (object)attr.Metadata.ModifiedOn : null;
+                        newRec["ljr_attributeof"] = attr.Metadata.AttributeOf;
+                        newRec["ljr_attributetype"] = attr.Metadata.AttributeType;
+                        newRec["ljr_attributetypename"] = attr.Metadata.AttributeTypeName;
+                        newRec["ljr_autonumberformat"] = attr.Metadata.AutoNumberFormat;
+                        newRec["ljr_canbesecuredforcreate"] = attr.Metadata.CanBeSecuredForCreate ?? false;
+                        newRec["ljr_canbesecuredforread"] = attr.Metadata.CanBeSecuredForRead ?? false;
+                        newRec["ljr_canbesecuredforupdate"] = attr.Metadata.CanBeSecuredForUpdate ?? false;
+                        newRec["ljr_canmodifiedadditionalsettings"] = attr.Metadata.CanModifiedAdditionalSettings ?? false;
+                        newRec["ljr_columnnumber"] = attr.Metadata.ColumnNumber ?? 0;
+                        newRec["ljr_deprecatedversion"] = attr.Metadata.DeprecatedVersion;
+                        newRec["ljr_displayname"] = attr.Metadata.DisplayName;
+                        newRec["ljr_entitylogicalname"] = attr.Metadata.EntityLogicalName;
+                        newRec["ljr_externalname"] = attr.Metadata.ExternalName;
+                        newRec["ljr_haschanged"] = attr.Metadata.HasChanged ?? false;
+                        newRec["ljr_inheritsfrom"] = attr.Metadata.InheritsFrom;
+                        newRec["ljr_introducedversion"] = attr.Metadata.IntroducedVersion;
+                        newRec["ljr_isauditenabled"] = attr.Metadata.IsAuditEnabled ?? false;
+                        newRec["ljr_metadatacreatedon"] = attr.Metadata.CreatedOn != DateTime.MinValue ? (object)attr.Metadata.CreatedOn : null;
+
+                        if (attr.Metadata.MaxValue != null)
+                            newRec["ljr_maxvalue"] = attr.Metadata.MaxValue;
+                        if (attr.Metadata.MinValue != null)
+                            newRec["ljr_minvalue"] = attr.Metadata.MinValue;
+                        if (attr.Metadata.Precision != null)
+                            newRec["ljr_precision"] = attr.Metadata.Precision;
+                        if (attr.Metadata.MaxLength != null)
+                            newRec["ljr_maxlength"] = attr.Metadata.MaxLength;
+
+                        if (attr.Metadata.OptionSet != null)
+                            newRec["ljr_optionset"] = attr.Metadata.OptionSet;
+                        if (attr.Metadata.Value != null)
+                            newRec["ljr_value"] = attr.Metadata.Value;
+
+                        newRec["ljr_description"] = attr.Metadata.Description;
+                        newRec["ljr_langcode"] = attr.Metadata.LangCode;
+
+                        newRec["ljr_ishiddenbyscript"] = attr.Metadata.IsHiddenByScript ?? false;
+                        newRec["ljr_isrequiredbyscript"] = attr.Metadata.IsRequiredByScript ?? false;
+                        newRec["ljr_hasdefaultvaluebyscript"] = attr.Metadata.HasDefaultValueByScript ?? false;
+                        if (!string.IsNullOrWhiteSpace(attr.Metadata.ScriptDefaultValue))
+                            newRec["ljr_scriptdefaultvalue"] = attr.Metadata.ScriptDefaultValue;
+                        if (!string.IsNullOrWhiteSpace(attr.Metadata.ModifyingWebResources))
+                        {
+                            newRec["ljr_modifyingwebresource"] = attr.Metadata.ModifyingWebResources;
+                            Guid webresourceId = _ddModel.WebResources[attr.Metadata.ModifyingWebResources].WebResourceId;
+                            newRec["ljr_webresource"] = new EntityReference("ljr_webresource", webresourceId);
+                        }
+                        // --- Check if record exists in Dataverse by alternate key ---
+                        bool exists = false;
+                        Guid existingId = Guid.Empty;
+
+                        // Query by alternate key (ljr_datadictionaryattributemetadata1)
+                        var query = new QueryExpression("ljr_datadictionaryattributemetadata")
+                        {
+                            ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
+                            Criteria = new FilterExpression
+                            {
+                                Conditions =
                             {
                                 new ConditionExpression("ljr_datadictionaryattributemetadata1", ConditionOperator.Equal, altKey)
                             }
-                        },
-                        TopCount = 1
-                    };
+                            },
+                            TopCount = 1
+                        };
 
-                    var result = _serviceClient.RetrieveMultiple(query);
-                    if (result.Entities.Count > 0)
-                    {
-                        exists = true;
-                        existingId = result.Entities[0].Id;
-                    }
+                        var result = _serviceClient.RetrieveMultiple(query);
+                        if (result.Entities.Count > 0)
+                        {
+                            exists = true;
+                            existingId = result.Entities[0].Id;
+                        }
 
-                    OrganizationRequest req;
-                    if (exists)
-                    {
-                        newRec.Id = existingId;
-                        req = new UpdateRequest { Target = newRec };
-                    }
-                    else
-                    {
-                        req = new CreateRequest { Target = newRec };
-                    }
-                    requests.Add(req);
+                        OrganizationRequest req;
+                        if (exists)
+                        {
+                            newRec.Id = existingId;
+                            req = new UpdateRequest { Target = newRec };
+                        }
+                        else
+                        {
+                            req = new CreateRequest { Target = newRec };
+                        }
+                        requests.Add(req);
 
-                    // If batch is full, execute and clear
-                    if (requests.Count == batchSize)
+                        // If batch is full, execute and clear
+                        if (requests.Count == batchSize)
+                        {
+                            ExecuteBatch(requests);
+                            requests.Clear();
+                        }
+                    }
+                    catch (Exception ex)
                     {
-                        ExecuteBatch(requests);
-                        requests.Clear();
+                        DictionaryOrchestrator.LogEvent($"Error processing attribute: '{attr.AttributeName}' of table '{entity.Key}': {ex.Message}");
                     }
                 }
             }
@@ -289,11 +296,17 @@ namespace DataDictionaryProcessor
 
             var response = (ExecuteMultipleResponse)_serviceClient.Execute(executeMultipleRequest);
 
+            int responseCount = 0;
             foreach (var resp in response.Responses)
             {
+                responseCount++;
                 if (resp.Fault != null)
                 {
                     DictionaryOrchestrator.LogEvent($"Error in batch operation: {resp.Fault.Message}");
+                }
+                else
+                {
+                    DictionaryOrchestrator.LogEvent($"Successfully processed request {responseCount} in batch.");
                 }
             }
         }
@@ -396,93 +409,101 @@ namespace DataDictionaryProcessor
         {
             DictionaryOrchestrator.LogEvent("Saving JavaScript field modifications to Dataverse...");
 
+
             foreach (DataDictionaryJavaScriptFieldModification jvMod in _ddModel.JavaScriptFieldModifications)
             {
-                var jsModEntity = new Entity("ljr_javascriptfieldmodification");
-                jsModEntity["ljr_fieldname"] = jvMod.FieldName;
-                jsModEntity["ljr_modificationtype"] = jvMod.ModificationType.ToString();
-                if (!string.IsNullOrWhiteSpace(jvMod.ModificationValue))
-                    jsModEntity["ljr_modificationvalue"] = jvMod.ModificationValue;
-                if (!string.IsNullOrWhiteSpace(jvMod.JavaScriptCode))
+                try
                 {
-                    if (jvMod.JavaScriptCode.Length > 4000)
+                    var jsModEntity = new Entity("ljr_javascriptfieldmodification");
+                    jsModEntity["ljr_fieldname"] = jvMod.FieldName;
+                    jsModEntity["ljr_modificationtype"] = jvMod.ModificationType.ToString();
+                    if (!string.IsNullOrWhiteSpace(jvMod.ModificationValue))
+                        jsModEntity["ljr_modificationvalue"] = jvMod.ModificationValue;
+                    if (!string.IsNullOrWhiteSpace(jvMod.JavaScriptCode))
                     {
-                        jsModEntity["ljr_javascriptcode"] = jvMod.JavaScriptCode.Substring(0, 4000);
-                        DictionaryOrchestrator.LogEvent($"JavaScript code for {jvMod.FieldName} truncated to 4000 characters.");
+                        if (jvMod.JavaScriptCode.Length > 4000)
+                        {
+                            jsModEntity["ljr_javascriptcode"] = jvMod.JavaScriptCode.Substring(0, 4000);
+                            DictionaryOrchestrator.LogEvent($"JavaScript code for {jvMod.FieldName} truncated to 4000 characters.");
+                        }
+                        else
+                            jsModEntity["ljr_javascriptcode"] = jvMod.JavaScriptCode;
+                    }
+                    if (jvMod.LineNumber.HasValue)
+                        jsModEntity["ljr_linenumber"] = jvMod.LineNumber.Value;
+                    if (!string.IsNullOrWhiteSpace(jvMod.AttributeTable))
+                        jsModEntity["ljr_attributetable"] = jvMod.AttributeTable;
+                    if (!string.IsNullOrWhiteSpace(jvMod.AttributeLogicalName))
+                        jsModEntity["ljr_attributelogicalname"] = jvMod.AttributeLogicalName;
+
+                    jsModEntity["ljr_name"] = $"{jvMod.FieldName}|{jvMod.ModificationType}";
+
+                    // Link to parent web resource if possible
+                    if (!string.IsNullOrWhiteSpace(jvMod.WebResourceName) && _ddModel.WebResources.ContainsKey(jvMod.WebResourceName))
+                    {
+                        var parentWebResourceId = _ddModel.WebResources[jvMod.WebResourceName].WebResourceId;
+                        if (parentWebResourceId != Guid.Empty)
+                            jsModEntity["ljr_webresourcelookup"] = new EntityReference("ljr_webresource", parentWebResourceId);
+                        else
+                            jsModEntity["ljr_webresourcelookup"] = null;
                     }
                     else
-                        jsModEntity["ljr_javascriptcode"] = jvMod.JavaScriptCode;
-                }
-                if (jvMod.LineNumber.HasValue)
-                    jsModEntity["ljr_linenumber"] = jvMod.LineNumber.Value;
-                if (!string.IsNullOrWhiteSpace(jvMod.AttributeTable))
-                    jsModEntity["ljr_attributetable"] = jvMod.AttributeTable;
-                if (!string.IsNullOrWhiteSpace(jvMod.AttributeLogicalName))
-                    jsModEntity["ljr_attributelogicalname"] = jvMod.AttributeLogicalName;
-
-                jsModEntity["ljr_name"] = $"{jvMod.FieldName}|{jvMod.ModificationType}";
-
-                // Link to parent web resource if possible
-                if (!string.IsNullOrWhiteSpace(jvMod.WebResourceName) && _ddModel.WebResources.ContainsKey(jvMod.WebResourceName))
-                {
-                    var parentWebResourceId = _ddModel.WebResources[jvMod.WebResourceName].WebResourceId;
-                    if (parentWebResourceId != Guid.Empty)
-                        jsModEntity["ljr_webresourcelookup"] = new EntityReference("ljr_webresource", parentWebResourceId);
-                    else
-                        jsModEntity["ljr_webresourcelookup"] = null;
-                }
-                else
-                {
-                    jsModEntity["ljr_webresourcelookup"] = null;
-                }
-
-                // Optionally relate to parent attribute metadata if available
-                if (!string.IsNullOrWhiteSpace(jvMod.AttributeTable) && !string.IsNullOrWhiteSpace(jvMod.AttributeLogicalName))
-                {
-                    var attrMetaQuery = new QueryExpression("ljr_datadictionaryattributemetadata")
                     {
-                        ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
+                        jsModEntity["ljr_webresourcelookup"] = null;
+                    }
+
+                    // Optionally relate to parent attribute metadata if available
+                    if (!string.IsNullOrWhiteSpace(jvMod.AttributeTable) && !string.IsNullOrWhiteSpace(jvMod.AttributeLogicalName))
+                    {
+                        var attrMetaQuery = new QueryExpression("ljr_datadictionaryattributemetadata")
+                        {
+                            ColumnSet = new ColumnSet("ljr_datadictionaryattributemetadataid"),
+                            Criteria = new FilterExpression
+                            {
+                                FilterOperator = LogicalOperator.And
+                            }
+                        };
+                        attrMetaQuery.Criteria.AddCondition("ljr_table", ConditionOperator.Equal, jvMod.AttributeTable);
+                        attrMetaQuery.Criteria.AddCondition("ljr_columnlogical", ConditionOperator.Equal, jvMod.AttributeLogicalName);
+                        var attrMetaResult = _serviceClient.RetrieveMultiple(attrMetaQuery);
+                        if (attrMetaResult.Entities.Count > 0)
+                        {
+                            var attrMetaId = attrMetaResult.Entities[0].Id;
+                            jsModEntity["ljr_attributemetadatalookup"] = new EntityReference("ljr_datadictionaryattributemetadata", attrMetaId);
+                        }
+                    }
+
+                    // Upsert logic for JavaScript field modifications
+                    var altKey = $"{jvMod.FieldName}|{jvMod.ModificationType}";
+                    var query = new QueryExpression("ljr_javascriptfieldmodification")
+                    {
+                        ColumnSet = new ColumnSet("ljr_javascriptfieldmodificationid"),
                         Criteria = new FilterExpression
                         {
                             FilterOperator = LogicalOperator.And
                         }
                     };
-                    attrMetaQuery.Criteria.AddCondition("ljr_table", ConditionOperator.Equal, jvMod.AttributeTable);
-                    attrMetaQuery.Criteria.AddCondition("ljr_columnlogical", ConditionOperator.Equal, jvMod.AttributeLogicalName);
-                    var attrMetaResult = _serviceClient.RetrieveMultiple(attrMetaQuery);
-                    if (attrMetaResult.Entities.Count > 0)
+                    query.Criteria.AddCondition("ljr_name", ConditionOperator.Equal, altKey);
+
+                    var result = _serviceClient.RetrieveMultiple(query);
+
+                    if (result.Entities.Count > 0)
                     {
-                        var attrMetaId = attrMetaResult.Entities[0].Id;
-                        jsModEntity["ljr_attributemetadatalookup"] = new EntityReference("ljr_datadictionaryattributemetadata", attrMetaId);
+                        // Update existing record
+                        jsModEntity.Id = result.Entities[0].Id;
+                        _serviceClient.Update(jsModEntity);
+                        DictionaryOrchestrator.LogEvent($"Updated JavaScript field modification: {altKey}");
+                    }
+                    else
+                    {
+                        // Create new record
+                        _serviceClient.Create(jsModEntity);
+                        DictionaryOrchestrator.LogEvent($"Created JavaScript field modification: {altKey}");
                     }
                 }
-
-                // Upsert logic for JavaScript field modifications
-                var altKey = $"{jvMod.FieldName}|{jvMod.ModificationType}";
-                var query = new QueryExpression("ljr_javascriptfieldmodification")
+                catch (Exception ex)
                 {
-                    ColumnSet = new ColumnSet("ljr_javascriptfieldmodificationid"),
-                    Criteria = new FilterExpression
-                    {
-                        FilterOperator = LogicalOperator.And
-                    }
-                };
-                query.Criteria.AddCondition("ljr_name", ConditionOperator.Equal, altKey);
-
-                var result = _serviceClient.RetrieveMultiple(query);
-
-                if (result.Entities.Count > 0)
-                {
-                    // Update existing record
-                    jsModEntity.Id = result.Entities[0].Id;
-                    _serviceClient.Update(jsModEntity);
-                    DictionaryOrchestrator.LogEvent($"Updated JavaScript field modification: {altKey}");
-                }
-                else
-                {
-                    // Create new record
-                    _serviceClient.Create(jsModEntity);
-                    DictionaryOrchestrator.LogEvent($"Created JavaScript field modification: {altKey}");
+                    DictionaryOrchestrator.LogEvent($"Error saving JavaScript field modification for field: '{jvMod.FieldName}': {ex.Message}");
                 }
             }
         }
